@@ -1,0 +1,10 @@
+{
+  "source": "reconstructed 2026-11-17 from a partially recorded live response (warm burst run, M1-13); NOT a verbatim recording. Observed live: HTTP 400, code \"prohibited_content\" (a string), no status field, no details or reasons, and the message prefix below, which the recorder cut off after \"Try \". Inferred: the fields sitting under \"error\" (the shape every other Decisions-dialect error was observed in), the message ending where the recording stops, and the absence of any other field. Response body only; no request content.",
+  "status": 400,
+  "body": {
+    "error": {
+      "code": "prohibited_content",
+      "message": "Input blocked: The prompt could not be submitted. The prompt contains sensitive words that violate Google's [Generative AI Prohibited Use policy](https://policies.google.com/terms/generative-ai/use-policy). Try "
+    }
+  }
+}

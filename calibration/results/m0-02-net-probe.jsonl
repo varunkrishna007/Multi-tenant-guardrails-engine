@@ -1,0 +1,397 @@
+{"at": "2026-11-17T15:26:53.272+00:00", "hold_every_s": 7, "host": "generativelanguage.googleapis.com", "note": "TCP+TLS only: no bytes sent after the handshake, no API call", "port": 443, "seconds": 345, "timeout_s": 10.0, "type": "probe_started"}
+{"at": "2026-11-17T15:26:54.000+00:00", "ok": true, "second": 54.0, "total_ms": 158, "type": "fresh"}
+{"at": "2026-11-17T15:26:55.000+00:00", "ok": true, "second": 55.0, "total_ms": 374, "type": "fresh"}
+{"at": "2026-11-17T15:26:56.000+00:00", "ok": true, "second": 56.0, "total_ms": 164, "type": "fresh"}
+{"at": "2026-11-17T15:26:57.000+00:00", "ok": true, "second": 57.0, "total_ms": 113, "type": "fresh"}
+{"at": "2026-11-17T15:26:58.000+00:00", "ok": true, "second": 58.0, "total_ms": 94, "type": "fresh"}
+{"at": "2026-11-17T15:26:59.000+00:00", "ok": true, "second": 59.0, "total_ms": 152, "type": "fresh"}
+{"at": "2026-11-17T15:27:00.000+00:00", "ok": true, "second": 0.0, "total_ms": 117, "type": "fresh"}
+{"at": "2026-11-17T15:27:01.000+00:00", "ok": true, "second": 1.0, "total_ms": 147, "type": "fresh"}
+{"at": "2026-11-17T15:27:02.000+00:00", "ok": true, "second": 2.0, "total_ms": 88, "type": "fresh"}
+{"at": "2026-11-17T15:27:03.000+00:00", "ok": true, "second": 3.0, "total_ms": 151, "type": "fresh"}
+{"at": "2026-11-17T15:27:04.000+00:00", "ok": true, "second": 4.0, "total_ms": 151, "type": "fresh"}
+{"at": "2026-11-17T15:27:05.000+00:00", "ok": true, "second": 5.0, "total_ms": 113, "type": "fresh"}
+{"at": "2026-11-17T15:27:06.000+00:00", "ok": true, "second": 6.0, "total_ms": 115, "type": "fresh"}
+{"at": "2026-11-17T15:27:07.000+00:00", "ok": true, "second": 7.0, "total_ms": 1177, "type": "fresh"}
+{"at": "2026-11-17T15:27:08.000+00:00", "ok": true, "second": 8.0, "total_ms": 177, "type": "fresh"}
+{"at": "2026-11-17T15:27:09.000+00:00", "ok": true, "second": 9.0, "total_ms": 110, "type": "fresh"}
+{"at": "2026-11-17T15:27:10.000+00:00", "ok": true, "second": 10.0, "total_ms": 111, "type": "fresh"}
+{"at": "2026-11-17T15:27:11.000+00:00", "ok": true, "second": 11.0, "total_ms": 180, "type": "fresh"}
+{"at": "2026-11-17T15:27:12.000+00:00", "ok": true, "second": 12.0, "total_ms": 127, "type": "fresh"}
+{"at": "2026-11-17T15:27:13.000+00:00", "ok": true, "second": 13.0, "total_ms": 139, "type": "fresh"}
+{"at": "2026-11-17T15:27:14.000+00:00", "ok": true, "second": 14.0, "total_ms": 906, "type": "fresh"}
+{"at": "2026-11-17T15:27:15.000+00:00", "ok": true, "second": 15.0, "total_ms": 214, "type": "fresh"}
+{"at": "2026-11-17T15:27:16.000+00:00", "ok": true, "second": 16.0, "total_ms": 84, "type": "fresh"}
+{"at": "2026-11-17T15:27:17.000+00:00", "ok": true, "second": 17.0, "total_ms": 169, "type": "fresh"}
+{"at": "2026-11-17T15:27:18.000+00:00", "ok": true, "second": 18.0, "total_ms": 105, "type": "fresh"}
+{"at": "2026-11-17T15:27:19.000+00:00", "ok": true, "second": 19.0, "total_ms": 281, "type": "fresh"}
+{"at": "2026-11-17T15:27:20.000+00:00", "ok": true, "second": 20.0, "total_ms": 422, "type": "fresh"}
+{"at": "2026-11-17T15:27:21.000+00:00", "ok": true, "second": 21.0, "total_ms": 113, "type": "fresh"}
+{"at": "2026-11-17T15:27:22.000+00:00", "ok": true, "second": 22.0, "total_ms": 133, "type": "fresh"}
+{"at": "2026-11-17T15:27:23.000+00:00", "ok": true, "second": 23.0, "total_ms": 143, "type": "fresh"}
+{"at": "2026-11-17T15:27:24.000+00:00", "ok": true, "second": 24.0, "total_ms": 92, "type": "fresh"}
+{"at": "2026-11-17T15:27:25.000+00:00", "ok": true, "second": 25.0, "total_ms": 152, "type": "fresh"}
+{"at": "2026-11-17T15:27:26.000+00:00", "ok": true, "second": 26.0, "total_ms": 155, "type": "fresh"}
+{"at": "2026-11-17T15:27:27.000+00:00", "ok": true, "second": 27.0, "total_ms": 253, "type": "fresh"}
+{"at": "2026-11-17T15:27:28.000+00:00", "ok": true, "second": 28.0, "total_ms": 124, "type": "fresh"}
+{"at": "2026-11-17T15:27:29.000+00:00", "ok": true, "second": 29.0, "total_ms": 127, "type": "fresh"}
+{"at": "2026-11-17T15:27:30.000+00:00", "ok": true, "second": 30.0, "total_ms": 134, "type": "fresh"}
+{"at": "2026-11-17T15:27:31.000+00:00", "ok": true, "second": 31.0, "total_ms": 267, "type": "fresh"}
+{"at": "2026-11-17T15:27:32.000+00:00", "ok": true, "second": 32.0, "total_ms": 159, "type": "fresh"}
+{"at": "2026-11-17T15:27:33.000+00:00", "ok": true, "second": 33.0, "total_ms": 134, "type": "fresh"}
+{"at": "2026-11-17T15:27:34.000+00:00", "ok": true, "second": 34.0, "total_ms": 316, "type": "fresh"}
+{"at": "2026-11-17T15:27:35.000+00:00", "ok": true, "second": 35.0, "total_ms": 291, "type": "fresh"}
+{"at": "2026-11-17T15:27:36.000+00:00", "ok": true, "second": 36.0, "total_ms": 140, "type": "fresh"}
+{"at": "2026-11-17T15:27:37.000+00:00", "ok": true, "second": 37.0, "total_ms": 168, "type": "fresh"}
+{"at": "2026-11-17T15:27:38.000+00:00", "ok": true, "second": 38.0, "total_ms": 161, "type": "fresh"}
+{"at": "2026-11-17T15:27:39.000+00:00", "ok": true, "second": 39.0, "total_ms": 166, "type": "fresh"}
+{"at": "2026-11-17T15:27:41.000+00:00", "ok": true, "second": 41.0, "total_ms": 102, "type": "fresh"}
+{"at": "2026-11-17T15:27:40.000+00:00", "ok": true, "second": 40.0, "total_ms": 1215, "type": "fresh"}
+{"at": "2026-11-17T15:27:42.000+00:00", "ok": true, "second": 42.0, "total_ms": 681, "type": "fresh"}
+{"at": "2026-11-17T15:27:43.000+00:00", "ok": true, "second": 43.0, "total_ms": 494, "type": "fresh"}
+{"at": "2026-11-17T15:27:44.000+00:00", "ok": true, "second": 44.0, "total_ms": 109, "type": "fresh"}
+{"at": "2026-11-17T15:27:45.000+00:00", "ok": true, "second": 45.0, "total_ms": 129, "type": "fresh"}
+{"at": "2026-11-17T15:27:46.000+00:00", "ok": true, "second": 46.0, "total_ms": 154, "type": "fresh"}
+{"at": "2026-11-17T15:27:47.000+00:00", "ok": true, "second": 47.0, "total_ms": 139, "type": "fresh"}
+{"at": "2026-11-17T15:27:48.000+00:00", "ok": true, "second": 48.0, "total_ms": 140, "type": "fresh"}
+{"at": "2026-11-17T15:27:49.000+00:00", "ok": true, "second": 49.0, "total_ms": 115, "type": "fresh"}
+{"at": "2026-11-17T15:27:50.000+00:00", "ok": true, "second": 50.0, "total_ms": 511, "type": "fresh"}
+{"at": "2026-11-17T15:27:51.000+00:00", "ok": true, "second": 51.0, "total_ms": 375, "type": "fresh"}
+{"at": "2026-11-17T15:27:52.000+00:00", "ok": true, "second": 52.0, "total_ms": 119, "type": "fresh"}
+{"at": "2026-11-17T15:27:53.000+00:00", "ok": true, "second": 53.0, "total_ms": 120, "type": "fresh"}
+{"at": "2026-11-17T15:27:54.000+00:00", "ok": true, "second": 54.0, "total_ms": 132, "type": "fresh"}
+{"at": "2026-11-17T15:27:55.000+00:00", "ok": true, "second": 55.0, "total_ms": 228, "type": "fresh"}
+{"at": "2026-11-17T15:27:56.000+00:00", "ok": true, "second": 56.0, "total_ms": 195, "type": "fresh"}
+{"at": "2026-11-17T15:27:57.000+00:00", "ok": true, "second": 57.0, "total_ms": 146, "type": "fresh"}
+{"at": "2026-11-17T15:27:59.000+00:00", "ok": true, "second": 59.0, "total_ms": 282, "type": "fresh"}
+{"at": "2026-11-17T15:27:58.000+00:00", "ok": true, "second": 58.0, "total_ms": 1512, "type": "fresh"}
+{"at": "2026-11-17T15:28:00.000+00:00", "ok": true, "second": 0.0, "total_ms": 112, "type": "fresh"}
+{"at": "2026-11-17T15:28:01.000+00:00", "ok": true, "second": 1.0, "total_ms": 212, "type": "fresh"}
+{"at": "2026-11-17T15:28:02.000+00:00", "ok": true, "second": 2.0, "total_ms": 467, "type": "fresh"}
+{"at": "2026-11-17T15:28:03.000+00:00", "ok": true, "second": 3.0, "total_ms": 85, "type": "fresh"}
+{"at": "2026-11-17T15:28:04.000+00:00", "ok": true, "second": 4.0, "total_ms": 168, "type": "fresh"}
+{"at": "2026-11-17T15:28:05.000+00:00", "ok": true, "second": 5.0, "total_ms": 89, "type": "fresh"}
+{"at": "2026-11-17T15:28:06.000+00:00", "ok": true, "second": 6.0, "total_ms": 112, "type": "fresh"}
+{"at": "2026-11-17T15:28:07.000+00:00", "ok": true, "second": 7.0, "total_ms": 147, "type": "fresh"}
+{"at": "2026-11-17T15:28:08.000+00:00", "ok": true, "second": 8.0, "total_ms": 115, "type": "fresh"}
+{"at": "2026-11-17T15:28:09.000+00:00", "ok": true, "second": 9.0, "total_ms": 111, "type": "fresh"}
+{"at": "2026-11-17T15:28:10.000+00:00", "ok": true, "second": 10.0, "total_ms": 190, "type": "fresh"}
+{"at": "2026-11-17T15:28:11.000+00:00", "ok": true, "second": 11.0, "total_ms": 149, "type": "fresh"}
+{"at": "2026-11-17T15:28:12.000+00:00", "ok": true, "second": 12.0, "total_ms": 109, "type": "fresh"}
+{"at": "2026-11-17T15:28:13.000+00:00", "ok": true, "second": 13.0, "total_ms": 179, "type": "fresh"}
+{"at": "2026-11-17T15:28:14.000+00:00", "ok": true, "second": 14.0, "total_ms": 251, "type": "fresh"}
+{"at": "2026-11-17T15:28:15.000+00:00", "ok": true, "second": 15.0, "total_ms": 134, "type": "fresh"}
+{"at": "2026-11-17T15:28:16.000+00:00", "ok": true, "second": 16.0, "total_ms": 119, "type": "fresh"}
+{"at": "2026-11-17T15:28:17.000+00:00", "ok": true, "second": 17.0, "total_ms": 142, "type": "fresh"}
+{"age_s": 84.407, "opened_at": "2026-11-17T15:26:54.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:28:18.000+00:00", "ok": true, "second": 18.0, "total_ms": 555, "type": "fresh"}
+{"at": "2026-11-17T15:28:19.000+00:00", "ok": true, "second": 19.0, "total_ms": 229, "type": "fresh"}
+{"at": "2026-11-17T15:28:20.000+00:00", "ok": true, "second": 20.0, "total_ms": 137, "type": "fresh"}
+{"at": "2026-11-17T15:28:21.000+00:00", "ok": true, "second": 21.0, "total_ms": 136, "type": "fresh"}
+{"at": "2026-11-17T15:28:22.000+00:00", "ok": true, "second": 22.0, "total_ms": 138, "type": "fresh"}
+{"at": "2026-11-17T15:28:23.000+00:00", "ok": true, "second": 23.0, "total_ms": 490, "type": "fresh"}
+{"at": "2026-11-17T15:28:24.000+00:00", "ok": true, "second": 24.0, "total_ms": 123, "type": "fresh"}
+{"at": "2026-11-17T15:28:25.000+00:00", "ok": true, "second": 25.0, "total_ms": 162, "type": "fresh"}
+{"age_s": 84.174, "opened_at": "2026-11-17T15:27:01.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:28:26.000+00:00", "ok": true, "second": 26.0, "total_ms": 95, "type": "fresh"}
+{"at": "2026-11-17T15:28:27.000+00:00", "ok": true, "second": 27.0, "total_ms": 363, "type": "fresh"}
+{"at": "2026-11-17T15:28:28.000+00:00", "ok": true, "second": 28.0, "total_ms": 172, "type": "fresh"}
+{"at": "2026-11-17T15:28:29.000+00:00", "ok": true, "second": 29.0, "total_ms": 107, "type": "fresh"}
+{"at": "2026-11-17T15:28:30.000+00:00", "ok": true, "second": 30.0, "total_ms": 116, "type": "fresh"}
+{"at": "2026-11-17T15:28:31.000+00:00", "ok": true, "second": 31.0, "total_ms": 138, "type": "fresh"}
+{"age_s": 84.169, "opened_at": "2026-11-17T15:27:08.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:28:32.000+00:00", "ok": true, "second": 32.0, "total_ms": 496, "type": "fresh"}
+{"at": "2026-11-17T15:28:33.000+00:00", "ok": true, "second": 33.0, "total_ms": 265, "type": "fresh"}
+{"at": "2026-11-17T15:28:34.000+00:00", "ok": true, "second": 34.0, "total_ms": 106, "type": "fresh"}
+{"at": "2026-11-17T15:28:35.000+00:00", "ok": true, "second": 35.0, "total_ms": 208, "type": "fresh"}
+{"at": "2026-11-17T15:28:36.000+00:00", "ok": true, "second": 36.0, "total_ms": 413, "type": "fresh"}
+{"at": "2026-11-17T15:28:37.000+00:00", "ok": true, "second": 37.0, "total_ms": 122, "type": "fresh"}
+{"at": "2026-11-17T15:28:38.000+00:00", "ok": true, "second": 38.0, "total_ms": 184, "type": "fresh"}
+{"at": "2026-11-17T15:28:39.000+00:00", "ok": true, "second": 39.0, "total_ms": 173, "type": "fresh"}
+{"age_s": 84.296, "opened_at": "2026-11-17T15:27:15.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:28:40.000+00:00", "ok": true, "second": 40.0, "total_ms": 163, "type": "fresh"}
+{"at": "2026-11-17T15:28:41.000+00:00", "ok": true, "second": 41.0, "total_ms": 245, "type": "fresh"}
+{"at": "2026-11-17T15:28:42.000+00:00", "ok": true, "second": 42.0, "total_ms": 107, "type": "fresh"}
+{"at": "2026-11-17T15:28:43.000+00:00", "ok": true, "second": 43.0, "total_ms": 207, "type": "fresh"}
+{"at": "2026-11-17T15:28:44.000+00:00", "ok": true, "second": 44.0, "total_ms": 114, "type": "fresh"}
+{"at": "2026-11-17T15:28:45.000+00:00", "ok": true, "second": 45.0, "total_ms": 127, "type": "fresh"}
+{"age_s": 84.155, "opened_at": "2026-11-17T15:27:22.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:28:46.000+00:00", "ok": true, "second": 46.0, "total_ms": 158, "type": "fresh"}
+{"at": "2026-11-17T15:28:47.000+00:00", "ok": true, "second": 47.0, "total_ms": 148, "type": "fresh"}
+{"at": "2026-11-17T15:28:48.000+00:00", "ok": true, "second": 48.0, "total_ms": 124, "type": "fresh"}
+{"at": "2026-11-17T15:28:49.000+00:00", "ok": true, "second": 49.0, "total_ms": 117, "type": "fresh"}
+{"at": "2026-11-17T15:28:50.000+00:00", "ok": true, "second": 50.0, "total_ms": 240, "type": "fresh"}
+{"at": "2026-11-17T15:28:51.000+00:00", "ok": true, "second": 51.0, "total_ms": 204, "type": "fresh"}
+{"at": "2026-11-17T15:28:52.000+00:00", "ok": true, "second": 52.0, "total_ms": 88, "type": "fresh"}
+{"at": "2026-11-17T15:28:53.000+00:00", "ok": true, "second": 53.0, "total_ms": 222, "type": "fresh"}
+{"age_s": 84.252, "opened_at": "2026-11-17T15:27:29.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:28:54.000+00:00", "ok": true, "second": 54.0, "total_ms": 111, "type": "fresh"}
+{"at": "2026-11-17T15:28:55.000+00:00", "ok": true, "second": 55.0, "total_ms": 104, "type": "fresh"}
+{"at": "2026-11-17T15:28:56.000+00:00", "ok": true, "second": 56.0, "total_ms": 133, "type": "fresh"}
+{"at": "2026-11-17T15:28:57.000+00:00", "ok": true, "second": 57.0, "total_ms": 114, "type": "fresh"}
+{"at": "2026-11-17T15:28:58.000+00:00", "ok": true, "second": 58.0, "total_ms": 118, "type": "fresh"}
+{"at": "2026-11-17T15:28:59.000+00:00", "ok": true, "second": 59.0, "total_ms": 487, "type": "fresh"}
+{"age_s": 84.155, "opened_at": "2026-11-17T15:27:36.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:29:00.000+00:00", "ok": true, "second": 0.0, "total_ms": 158, "type": "fresh"}
+{"at": "2026-11-17T15:29:01.000+00:00", "ok": true, "second": 1.0, "total_ms": 97, "type": "fresh"}
+{"at": "2026-11-17T15:29:02.000+00:00", "ok": true, "second": 2.0, "total_ms": 181, "type": "fresh"}
+{"at": "2026-11-17T15:29:03.000+00:00", "ok": true, "second": 3.0, "total_ms": 168, "type": "fresh"}
+{"at": "2026-11-17T15:29:04.000+00:00", "ok": true, "second": 4.0, "total_ms": 125, "type": "fresh"}
+{"at": "2026-11-17T15:29:05.000+00:00", "ok": true, "second": 5.0, "total_ms": 362, "type": "fresh"}
+{"at": "2026-11-17T15:29:06.000+00:00", "ok": true, "second": 6.0, "total_ms": 105, "type": "fresh"}
+{"age_s": 84.157, "opened_at": "2026-11-17T15:27:43.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:29:07.000+00:00", "ok": true, "second": 7.0, "total_ms": 175, "type": "fresh"}
+{"at": "2026-11-17T15:29:08.000+00:00", "ok": true, "second": 8.0, "total_ms": 117, "type": "fresh"}
+{"at": "2026-11-17T15:29:09.000+00:00", "ok": true, "second": 9.0, "total_ms": 447, "type": "fresh"}
+{"at": "2026-11-17T15:29:10.000+00:00", "ok": true, "second": 10.0, "total_ms": 146, "type": "fresh"}
+{"at": "2026-11-17T15:29:11.000+00:00", "ok": true, "second": 11.0, "total_ms": 94, "type": "fresh"}
+{"at": "2026-11-17T15:29:12.000+00:00", "ok": true, "second": 12.0, "total_ms": 116, "type": "fresh"}
+{"at": "2026-11-17T15:29:13.000+00:00", "ok": true, "second": 13.0, "total_ms": 445, "type": "fresh"}
+{"age_s": 84.147, "opened_at": "2026-11-17T15:27:50.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:29:14.000+00:00", "ok": true, "second": 14.0, "total_ms": 153, "type": "fresh"}
+{"at": "2026-11-17T15:29:15.000+00:00", "ok": true, "second": 15.0, "total_ms": 359, "type": "fresh"}
+{"at": "2026-11-17T15:29:16.000+00:00", "ok": true, "second": 16.0, "total_ms": 105, "type": "fresh"}
+{"at": "2026-11-17T15:29:17.000+00:00", "ok": true, "second": 17.0, "total_ms": 87, "type": "fresh"}
+{"at": "2026-11-17T15:29:18.000+00:00", "ok": true, "second": 18.0, "total_ms": 98, "type": "fresh"}
+{"at": "2026-11-17T15:29:19.000+00:00", "ok": true, "second": 19.0, "total_ms": 125, "type": "fresh"}
+{"at": "2026-11-17T15:29:20.000+00:00", "ok": true, "second": 20.0, "total_ms": 90, "type": "fresh"}
+{"age_s": 84.162, "opened_at": "2026-11-17T15:27:57.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:29:21.000+00:00", "ok": true, "second": 21.0, "total_ms": 169, "type": "fresh"}
+{"at": "2026-11-17T15:29:22.000+00:00", "ok": true, "second": 22.0, "total_ms": 131, "type": "fresh"}
+{"at": "2026-11-17T15:29:23.000+00:00", "ok": true, "second": 23.0, "total_ms": 114, "type": "fresh"}
+{"at": "2026-11-17T15:29:24.000+00:00", "ok": true, "second": 24.0, "total_ms": 214, "type": "fresh"}
+{"at": "2026-11-17T15:29:25.000+00:00", "ok": true, "second": 25.0, "total_ms": 101, "type": "fresh"}
+{"at": "2026-11-17T15:29:26.000+00:00", "ok": true, "second": 26.0, "total_ms": 128, "type": "fresh"}
+{"at": "2026-11-17T15:29:27.000+00:00", "ok": true, "second": 27.0, "total_ms": 122, "type": "fresh"}
+{"at": "2026-11-17T15:29:28.000+00:00", "ok": true, "second": 28.0, "total_ms": 153, "type": "fresh"}
+{"age_s": 84.161, "opened_at": "2026-11-17T15:28:04.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:29:29.000+00:00", "ok": true, "second": 29.0, "total_ms": 112, "type": "fresh"}
+{"at": "2026-11-17T15:29:30.000+00:00", "ok": true, "second": 30.0, "total_ms": 204, "type": "fresh"}
+{"at": "2026-11-17T15:29:31.000+00:00", "ok": true, "second": 31.0, "total_ms": 246, "type": "fresh"}
+{"at": "2026-11-17T15:29:32.000+00:00", "ok": true, "second": 32.0, "total_ms": 135, "type": "fresh"}
+{"at": "2026-11-17T15:29:33.000+00:00", "ok": true, "second": 33.0, "total_ms": 137, "type": "fresh"}
+{"at": "2026-11-17T15:29:34.000+00:00", "ok": true, "second": 34.0, "total_ms": 139, "type": "fresh"}
+{"at": "2026-11-17T15:29:35.000+00:00", "ok": true, "second": 35.0, "total_ms": 144, "type": "fresh"}
+{"age_s": 84.152, "opened_at": "2026-11-17T15:28:11.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:29:36.000+00:00", "ok": true, "second": 36.0, "total_ms": 157, "type": "fresh"}
+{"at": "2026-11-17T15:29:37.000+00:00", "ok": true, "second": 37.0, "total_ms": 154, "type": "fresh"}
+{"at": "2026-11-17T15:29:38.000+00:00", "ok": true, "second": 38.0, "total_ms": 156, "type": "fresh"}
+{"at": "2026-11-17T15:29:39.000+00:00", "ok": true, "second": 39.0, "total_ms": 170, "type": "fresh"}
+{"at": "2026-11-17T15:29:40.000+00:00", "ok": true, "second": 40.0, "total_ms": 168, "type": "fresh"}
+{"at": "2026-11-17T15:29:41.000+00:00", "ok": true, "second": 41.0, "total_ms": 168, "type": "fresh"}
+{"at": "2026-11-17T15:29:42.000+00:00", "ok": true, "second": 42.0, "total_ms": 173, "type": "fresh"}
+{"age_s": 84.187, "opened_at": "2026-11-17T15:28:18.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:29:43.000+00:00", "ok": true, "second": 43.0, "total_ms": 122, "type": "fresh"}
+{"at": "2026-11-17T15:29:44.000+00:00", "ok": true, "second": 44.0, "total_ms": 162, "type": "fresh"}
+{"at": "2026-11-17T15:29:45.000+00:00", "ok": true, "second": 45.0, "total_ms": 126, "type": "fresh"}
+{"at": "2026-11-17T15:29:46.000+00:00", "ok": true, "second": 46.0, "total_ms": 132, "type": "fresh"}
+{"at": "2026-11-17T15:29:47.000+00:00", "ok": true, "second": 47.0, "total_ms": 143, "type": "fresh"}
+{"at": "2026-11-17T15:29:48.000+00:00", "ok": true, "second": 48.0, "total_ms": 140, "type": "fresh"}
+{"at": "2026-11-17T15:29:49.000+00:00", "ok": true, "second": 49.0, "total_ms": 162, "type": "fresh"}
+{"age_s": 84.261, "opened_at": "2026-11-17T15:28:25.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:29:50.000+00:00", "ok": true, "second": 50.0, "total_ms": 157, "type": "fresh"}
+{"at": "2026-11-17T15:29:51.000+00:00", "ok": true, "second": 51.0, "total_ms": 157, "type": "fresh"}
+{"at": "2026-11-17T15:29:52.000+00:00", "ok": true, "second": 52.0, "total_ms": 203, "type": "fresh"}
+{"at": "2026-11-17T15:29:53.000+00:00", "ok": true, "second": 53.0, "total_ms": 165, "type": "fresh"}
+{"at": "2026-11-17T15:29:54.000+00:00", "ok": true, "second": 54.0, "total_ms": 95, "type": "fresh"}
+{"at": "2026-11-17T15:29:55.000+00:00", "ok": true, "second": 55.0, "total_ms": 112, "type": "fresh"}
+{"age_s": 84.18, "opened_at": "2026-11-17T15:28:32.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:29:56.000+00:00", "ok": true, "second": 56.0, "total_ms": 188, "type": "fresh"}
+{"at": "2026-11-17T15:29:57.000+00:00", "ok": true, "second": 57.0, "total_ms": 102, "type": "fresh"}
+{"at": "2026-11-17T15:29:58.000+00:00", "ok": true, "second": 58.0, "total_ms": 92, "type": "fresh"}
+{"at": "2026-11-17T15:29:59.000+00:00", "ok": true, "second": 59.0, "total_ms": 110, "type": "fresh"}
+{"at": "2026-11-17T15:30:00.000+00:00", "ok": true, "second": 0.0, "total_ms": 513, "type": "fresh"}
+{"at": "2026-11-17T15:30:01.000+00:00", "ok": true, "second": 1.0, "total_ms": 98, "type": "fresh"}
+{"at": "2026-11-17T15:30:02.000+00:00", "ok": true, "second": 2.0, "total_ms": 460, "type": "fresh"}
+{"age_s": 84.142, "opened_at": "2026-11-17T15:28:39.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:30:03.000+00:00", "ok": true, "second": 3.0, "total_ms": 152, "type": "fresh"}
+{"at": "2026-11-17T15:30:04.000+00:00", "ok": true, "second": 4.0, "total_ms": 213, "type": "fresh"}
+{"at": "2026-11-17T15:30:05.000+00:00", "ok": true, "second": 5.0, "total_ms": 92, "type": "fresh"}
+{"at": "2026-11-17T15:30:06.000+00:00", "ok": true, "second": 6.0, "total_ms": 161, "type": "fresh"}
+{"at": "2026-11-17T15:30:07.000+00:00", "ok": true, "second": 7.0, "total_ms": 159, "type": "fresh"}
+{"at": "2026-11-17T15:30:08.000+00:00", "ok": true, "second": 8.0, "total_ms": 126, "type": "fresh"}
+{"at": "2026-11-17T15:30:09.000+00:00", "ok": true, "second": 9.0, "total_ms": 110, "type": "fresh"}
+{"age_s": 84.167, "opened_at": "2026-11-17T15:28:46.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:30:10.000+00:00", "ok": true, "second": 10.0, "total_ms": 176, "type": "fresh"}
+{"at": "2026-11-17T15:30:11.000+00:00", "ok": true, "second": 11.0, "total_ms": 405, "type": "fresh"}
+{"at": "2026-11-17T15:30:12.000+00:00", "ok": true, "second": 12.0, "total_ms": 164, "type": "fresh"}
+{"at": "2026-11-17T15:30:13.000+00:00", "ok": true, "second": 13.0, "total_ms": 133, "type": "fresh"}
+{"at": "2026-11-17T15:30:14.000+00:00", "ok": true, "second": 14.0, "total_ms": 123, "type": "fresh"}
+{"at": "2026-11-17T15:30:15.000+00:00", "ok": true, "second": 15.0, "total_ms": 101, "type": "fresh"}
+{"at": "2026-11-17T15:30:16.000+00:00", "ok": true, "second": 16.0, "total_ms": 179, "type": "fresh"}
+{"age_s": 84.191, "opened_at": "2026-11-17T15:28:53.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:30:17.000+00:00", "ok": true, "second": 17.0, "total_ms": 196, "type": "fresh"}
+{"at": "2026-11-17T15:30:18.000+00:00", "ok": true, "second": 18.0, "total_ms": 213, "type": "fresh"}
+{"at": "2026-11-17T15:30:19.000+00:00", "ok": true, "second": 19.0, "total_ms": 117, "type": "fresh"}
+{"at": "2026-11-17T15:30:20.000+00:00", "ok": true, "second": 20.0, "total_ms": 114, "type": "fresh"}
+{"at": "2026-11-17T15:30:21.000+00:00", "ok": true, "second": 21.0, "total_ms": 120, "type": "fresh"}
+{"at": "2026-11-17T15:30:22.000+00:00", "ok": true, "second": 22.0, "total_ms": 130, "type": "fresh"}
+{"at": "2026-11-17T15:30:23.000+00:00", "ok": true, "second": 23.0, "total_ms": 164, "type": "fresh"}
+{"at": "2026-11-17T15:30:24.000+00:00", "ok": true, "second": 24.0, "total_ms": 145, "type": "fresh"}
+{"age_s": 84.186, "opened_at": "2026-11-17T15:29:00.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:30:25.000+00:00", "ok": true, "second": 25.0, "total_ms": 122, "type": "fresh"}
+{"at": "2026-11-17T15:30:26.000+00:00", "ok": true, "second": 26.0, "total_ms": 187, "type": "fresh"}
+{"at": "2026-11-17T15:30:27.000+00:00", "ok": true, "second": 27.0, "total_ms": 123, "type": "fresh"}
+{"at": "2026-11-17T15:30:28.000+00:00", "ok": true, "second": 28.0, "total_ms": 212, "type": "fresh"}
+{"at": "2026-11-17T15:30:29.000+00:00", "ok": true, "second": 29.0, "total_ms": 106, "type": "fresh"}
+{"at": "2026-11-17T15:30:30.000+00:00", "ok": true, "second": 30.0, "total_ms": 100, "type": "fresh"}
+{"at": "2026-11-17T15:30:31.000+00:00", "ok": true, "second": 31.0, "total_ms": 134, "type": "fresh"}
+{"age_s": 84.14, "opened_at": "2026-11-17T15:29:07.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:30:32.000+00:00", "ok": true, "second": 32.0, "total_ms": 126, "type": "fresh"}
+{"at": "2026-11-17T15:30:33.000+00:00", "ok": true, "second": 33.0, "total_ms": 202, "type": "fresh"}
+{"at": "2026-11-17T15:30:34.000+00:00", "ok": true, "second": 34.0, "total_ms": 200, "type": "fresh"}
+{"at": "2026-11-17T15:30:35.000+00:00", "ok": true, "second": 35.0, "total_ms": 119, "type": "fresh"}
+{"at": "2026-11-17T15:30:36.000+00:00", "ok": true, "second": 36.0, "total_ms": 115, "type": "fresh"}
+{"at": "2026-11-17T15:30:37.000+00:00", "ok": true, "second": 37.0, "total_ms": 108, "type": "fresh"}
+{"at": "2026-11-17T15:30:38.000+00:00", "ok": true, "second": 38.0, "total_ms": 208, "type": "fresh"}
+{"age_s": 84.262, "opened_at": "2026-11-17T15:29:14.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:30:39.000+00:00", "ok": true, "second": 39.0, "total_ms": 125, "type": "fresh"}
+{"at": "2026-11-17T15:30:40.000+00:00", "ok": true, "second": 40.0, "total_ms": 116, "type": "fresh"}
+{"at": "2026-11-17T15:30:41.000+00:00", "ok": true, "second": 41.0, "total_ms": 138, "type": "fresh"}
+{"at": "2026-11-17T15:30:42.000+00:00", "ok": true, "second": 42.0, "total_ms": 113, "type": "fresh"}
+{"at": "2026-11-17T15:30:43.000+00:00", "ok": true, "second": 43.0, "total_ms": 110, "type": "fresh"}
+{"at": "2026-11-17T15:30:44.000+00:00", "ok": true, "second": 44.0, "total_ms": 360, "type": "fresh"}
+{"age_s": 84.133, "opened_at": "2026-11-17T15:29:21.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:30:45.000+00:00", "ok": true, "second": 45.0, "total_ms": 131, "type": "fresh"}
+{"at": "2026-11-17T15:30:46.000+00:00", "ok": true, "second": 46.0, "total_ms": 164, "type": "fresh"}
+{"at": "2026-11-17T15:30:47.000+00:00", "ok": true, "second": 47.0, "total_ms": 89, "type": "fresh"}
+{"at": "2026-11-17T15:30:48.000+00:00", "ok": true, "second": 48.0, "total_ms": 96, "type": "fresh"}
+{"at": "2026-11-17T15:30:49.000+00:00", "ok": true, "second": 49.0, "total_ms": 175, "type": "fresh"}
+{"at": "2026-11-17T15:30:50.000+00:00", "ok": true, "second": 50.0, "total_ms": 96, "type": "fresh"}
+{"at": "2026-11-17T15:30:51.000+00:00", "ok": true, "second": 51.0, "total_ms": 169, "type": "fresh"}
+{"at": "2026-11-17T15:30:52.000+00:00", "ok": true, "second": 52.0, "total_ms": 126, "type": "fresh"}
+{"age_s": 84.137, "opened_at": "2026-11-17T15:29:28.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:30:53.000+00:00", "ok": true, "second": 53.0, "total_ms": 456, "type": "fresh"}
+{"at": "2026-11-17T15:30:54.000+00:00", "ok": true, "second": 54.0, "total_ms": 123, "type": "fresh"}
+{"at": "2026-11-17T15:30:55.000+00:00", "ok": true, "second": 55.0, "total_ms": 263, "type": "fresh"}
+{"at": "2026-11-17T15:30:56.000+00:00", "ok": true, "second": 56.0, "total_ms": 130, "type": "fresh"}
+{"at": "2026-11-17T15:30:57.000+00:00", "ok": true, "second": 57.0, "total_ms": 116, "type": "fresh"}
+{"at": "2026-11-17T15:30:58.000+00:00", "ok": true, "second": 58.0, "total_ms": 145, "type": "fresh"}
+{"age_s": 84.144, "opened_at": "2026-11-17T15:29:35.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:30:59.000+00:00", "ok": true, "second": 59.0, "total_ms": 147, "type": "fresh"}
+{"at": "2026-11-17T15:31:00.000+00:00", "ok": true, "second": 0.0, "total_ms": 121, "type": "fresh"}
+{"at": "2026-11-17T15:31:01.000+00:00", "ok": true, "second": 1.0, "total_ms": 124, "type": "fresh"}
+{"at": "2026-11-17T15:31:02.000+00:00", "ok": true, "second": 2.0, "total_ms": 124, "type": "fresh"}
+{"at": "2026-11-17T15:31:03.000+00:00", "ok": true, "second": 3.0, "total_ms": 91, "type": "fresh"}
+{"at": "2026-11-17T15:31:04.000+00:00", "ok": true, "second": 4.0, "total_ms": 131, "type": "fresh"}
+{"at": "2026-11-17T15:31:05.000+00:00", "ok": true, "second": 5.0, "total_ms": 76, "type": "fresh"}
+{"age_s": 84.162, "opened_at": "2026-11-17T15:29:42.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:31:06.000+00:00", "ok": true, "second": 6.0, "total_ms": 176, "type": "fresh"}
+{"at": "2026-11-17T15:31:07.000+00:00", "ok": true, "second": 7.0, "total_ms": 111, "type": "fresh"}
+{"at": "2026-11-17T15:31:08.000+00:00", "ok": true, "second": 8.0, "total_ms": 119, "type": "fresh"}
+{"age_s": 51.509, "closed_at": "2026-11-17T15:31:08.508+00:00", "how": "ConnectionResetError", "opened_at": "2026-11-17T15:30:17.000+00:00", "second": 8.509, "type": "held_closed"}
+{"at": "2026-11-17T15:31:09.000+00:00", "ok": true, "second": 9.0, "total_ms": 162, "type": "fresh"}
+{"at": "2026-11-17T15:31:10.000+00:00", "ok": true, "second": 10.0, "total_ms": 103, "type": "fresh"}
+{"at": "2026-11-17T15:31:11.000+00:00", "ok": true, "second": 11.0, "total_ms": 90, "type": "fresh"}
+{"at": "2026-11-17T15:31:12.000+00:00", "ok": true, "second": 12.0, "total_ms": 92, "type": "fresh"}
+{"at": "2026-11-17T15:31:13.000+00:00", "ok": true, "second": 13.0, "total_ms": 142, "type": "fresh"}
+{"at": "2026-11-17T15:31:14.000+00:00", "ok": true, "second": 14.0, "total_ms": 96, "type": "fresh"}
+{"at": "2026-11-17T15:31:15.000+00:00", "ok": true, "second": 15.0, "total_ms": 93, "type": "fresh"}
+{"at": "2026-11-17T15:31:16.000+00:00", "ok": true, "second": 16.0, "total_ms": 130, "type": "fresh"}
+{"at": "2026-11-17T15:31:17.000+00:00", "ok": true, "second": 17.0, "total_ms": 75, "type": "fresh"}
+{"at": "2026-11-17T15:31:18.000+00:00", "ok": true, "second": 18.0, "total_ms": 105, "type": "fresh"}
+{"at": "2026-11-17T15:31:19.000+00:00", "ok": true, "second": 19.0, "total_ms": 108, "type": "fresh"}
+{"at": "2026-11-17T15:31:20.000+00:00", "ok": true, "second": 20.0, "total_ms": 145, "type": "fresh"}
+{"age_s": 91.15, "opened_at": "2026-11-17T15:29:49.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:31:21.000+00:00", "ok": true, "second": 21.0, "total_ms": 81, "type": "fresh"}
+{"at": "2026-11-17T15:31:22.000+00:00", "ok": true, "second": 22.0, "total_ms": 159, "type": "fresh"}
+{"at": "2026-11-17T15:31:23.000+00:00", "ok": true, "second": 23.0, "total_ms": 149, "type": "fresh"}
+{"at": "2026-11-17T15:31:24.000+00:00", "ok": true, "second": 24.0, "total_ms": 126, "type": "fresh"}
+{"at": "2026-11-17T15:31:25.000+00:00", "ok": true, "second": 25.0, "total_ms": 140, "type": "fresh"}
+{"at": "2026-11-17T15:31:26.000+00:00", "ok": true, "second": 26.0, "total_ms": 101, "type": "fresh"}
+{"at": "2026-11-17T15:31:27.000+00:00", "ok": true, "second": 27.0, "total_ms": 158, "type": "fresh"}
+{"age_s": 91.178, "opened_at": "2026-11-17T15:29:56.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:31:28.000+00:00", "ok": true, "second": 28.0, "total_ms": 134, "type": "fresh"}
+{"at": "2026-11-17T15:31:29.000+00:00", "ok": true, "second": 29.0, "total_ms": 100, "type": "fresh"}
+{"at": "2026-11-17T15:31:30.000+00:00", "ok": true, "second": 30.0, "total_ms": 115, "type": "fresh"}
+{"at": "2026-11-17T15:31:31.000+00:00", "ok": true, "second": 31.0, "total_ms": 137, "type": "fresh"}
+{"at": "2026-11-17T15:31:32.000+00:00", "ok": true, "second": 32.0, "total_ms": 236, "type": "fresh"}
+{"at": "2026-11-17T15:31:33.000+00:00", "ok": true, "second": 33.0, "total_ms": 90, "type": "fresh"}
+{"at": "2026-11-17T15:31:34.000+00:00", "ok": true, "second": 34.0, "total_ms": 145, "type": "fresh"}
+{"age_s": 91.152, "opened_at": "2026-11-17T15:30:03.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:31:35.000+00:00", "ok": true, "second": 35.0, "total_ms": 589, "type": "fresh"}
+{"at": "2026-11-17T15:31:36.000+00:00", "ok": true, "second": 36.0, "total_ms": 127, "type": "fresh"}
+{"at": "2026-11-17T15:31:37.000+00:00", "ok": true, "second": 37.0, "total_ms": 500, "type": "fresh"}
+{"at": "2026-11-17T15:31:38.000+00:00", "ok": true, "second": 38.0, "total_ms": 93, "type": "fresh"}
+{"at": "2026-11-17T15:31:39.000+00:00", "ok": true, "second": 39.0, "total_ms": 118, "type": "fresh"}
+{"at": "2026-11-17T15:31:40.000+00:00", "ok": true, "second": 40.0, "total_ms": 145, "type": "fresh"}
+{"at": "2026-11-17T15:31:41.000+00:00", "ok": true, "second": 41.0, "total_ms": 106, "type": "fresh"}
+{"age_s": 91.112, "opened_at": "2026-11-17T15:30:10.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:31:42.000+00:00", "ok": true, "second": 42.0, "total_ms": 123, "type": "fresh"}
+{"at": "2026-11-17T15:31:43.000+00:00", "ok": true, "second": 43.0, "total_ms": 99, "type": "fresh"}
+{"at": "2026-11-17T15:31:44.000+00:00", "ok": true, "second": 44.0, "total_ms": 214, "type": "fresh"}
+{"at": "2026-11-17T15:31:45.000+00:00", "ok": true, "second": 45.0, "total_ms": 133, "type": "fresh"}
+{"at": "2026-11-17T15:31:46.000+00:00", "ok": true, "second": 46.0, "total_ms": 169, "type": "fresh"}
+{"at": "2026-11-17T15:31:47.000+00:00", "ok": true, "second": 47.0, "total_ms": 114, "type": "fresh"}
+{"age_s": 84.138, "opened_at": "2026-11-17T15:30:24.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:31:48.000+00:00", "ok": true, "second": 48.0, "total_ms": 163, "type": "fresh"}
+{"at": "2026-11-17T15:31:49.000+00:00", "ok": true, "second": 49.0, "total_ms": 391, "type": "fresh"}
+{"at": "2026-11-17T15:31:50.000+00:00", "ok": true, "second": 50.0, "total_ms": 82, "type": "fresh"}
+{"at": "2026-11-17T15:31:51.000+00:00", "ok": true, "second": 51.0, "total_ms": 95, "type": "fresh"}
+{"at": "2026-11-17T15:31:52.000+00:00", "ok": true, "second": 52.0, "total_ms": 122, "type": "fresh"}
+{"at": "2026-11-17T15:31:53.000+00:00", "ok": true, "second": 53.0, "total_ms": 135, "type": "fresh"}
+{"at": "2026-11-17T15:31:54.000+00:00", "ok": true, "second": 54.0, "total_ms": 181, "type": "fresh"}
+{"at": "2026-11-17T15:31:55.000+00:00", "ok": true, "second": 55.0, "total_ms": 127, "type": "fresh"}
+{"age_s": 84.184, "opened_at": "2026-11-17T15:30:31.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:31:56.000+00:00", "ok": true, "second": 56.0, "total_ms": 105, "type": "fresh"}
+{"at": "2026-11-17T15:31:57.000+00:00", "ok": true, "second": 57.0, "total_ms": 150, "type": "fresh"}
+{"at": "2026-11-17T15:31:58.000+00:00", "ok": true, "second": 58.0, "total_ms": 113, "type": "fresh"}
+{"at": "2026-11-17T15:31:59.000+00:00", "ok": true, "second": 59.0, "total_ms": 173, "type": "fresh"}
+{"at": "2026-11-17T15:32:00.000+00:00", "ok": true, "second": 0.0, "total_ms": 120, "type": "fresh"}
+{"at": "2026-11-17T15:32:01.000+00:00", "ok": true, "second": 1.0, "total_ms": 113, "type": "fresh"}
+{"age_s": 84.147, "opened_at": "2026-11-17T15:30:38.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:32:02.000+00:00", "ok": true, "second": 2.0, "total_ms": 155, "type": "fresh"}
+{"at": "2026-11-17T15:32:03.000+00:00", "ok": true, "second": 3.0, "total_ms": 107, "type": "fresh"}
+{"at": "2026-11-17T15:32:04.000+00:00", "ok": true, "second": 4.0, "total_ms": 100, "type": "fresh"}
+{"at": "2026-11-17T15:32:05.000+00:00", "ok": true, "second": 5.0, "total_ms": 97, "type": "fresh"}
+{"at": "2026-11-17T15:32:06.000+00:00", "ok": true, "second": 6.0, "total_ms": 142, "type": "fresh"}
+{"at": "2026-11-17T15:32:07.000+00:00", "ok": true, "second": 7.0, "total_ms": 102, "type": "fresh"}
+{"at": "2026-11-17T15:32:08.000+00:00", "ok": true, "second": 8.0, "total_ms": 134, "type": "fresh"}
+{"at": "2026-11-17T15:32:09.000+00:00", "ok": true, "second": 9.0, "total_ms": 151, "type": "fresh"}
+{"age_s": 84.165, "opened_at": "2026-11-17T15:30:45.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:32:10.000+00:00", "ok": true, "second": 10.0, "total_ms": 98, "type": "fresh"}
+{"at": "2026-11-17T15:32:11.000+00:00", "ok": true, "second": 11.0, "total_ms": 114, "type": "fresh"}
+{"at": "2026-11-17T15:32:12.000+00:00", "ok": true, "second": 12.0, "total_ms": 434, "type": "fresh"}
+{"at": "2026-11-17T15:32:13.000+00:00", "ok": true, "second": 13.0, "total_ms": 103, "type": "fresh"}
+{"at": "2026-11-17T15:32:14.000+00:00", "ok": true, "second": 14.0, "total_ms": 189, "type": "fresh"}
+{"at": "2026-11-17T15:32:15.000+00:00", "ok": true, "second": 15.0, "total_ms": 127, "type": "fresh"}
+{"age_s": 84.128, "opened_at": "2026-11-17T15:30:52.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:32:16.000+00:00", "ok": true, "second": 16.0, "total_ms": 153, "type": "fresh"}
+{"at": "2026-11-17T15:32:17.000+00:00", "ok": true, "second": 17.0, "total_ms": 109, "type": "fresh"}
+{"at": "2026-11-17T15:32:18.000+00:00", "ok": true, "second": 18.0, "total_ms": 117, "type": "fresh"}
+{"at": "2026-11-17T15:32:19.000+00:00", "ok": true, "second": 19.0, "total_ms": 124, "type": "fresh"}
+{"at": "2026-11-17T15:32:20.000+00:00", "ok": true, "second": 20.0, "total_ms": 123, "type": "fresh"}
+{"at": "2026-11-17T15:32:21.000+00:00", "ok": true, "second": 21.0, "total_ms": 120, "type": "fresh"}
+{"at": "2026-11-17T15:32:22.000+00:00", "ok": true, "second": 22.0, "total_ms": 124, "type": "fresh"}
+{"at": "2026-11-17T15:32:23.000+00:00", "ok": true, "second": 23.0, "total_ms": 178, "type": "fresh"}
+{"age_s": 84.185, "opened_at": "2026-11-17T15:30:59.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:32:24.000+00:00", "ok": true, "second": 24.0, "total_ms": 112, "type": "fresh"}
+{"at": "2026-11-17T15:32:25.000+00:00", "ok": true, "second": 25.0, "total_ms": 107, "type": "fresh"}
+{"at": "2026-11-17T15:32:26.000+00:00", "ok": true, "second": 26.0, "total_ms": 208, "type": "fresh"}
+{"at": "2026-11-17T15:32:27.000+00:00", "ok": true, "second": 27.0, "total_ms": 306, "type": "fresh"}
+{"at": "2026-11-17T15:32:28.000+00:00", "ok": true, "second": 28.0, "total_ms": 127, "type": "fresh"}
+{"at": "2026-11-17T15:32:29.000+00:00", "ok": true, "second": 29.0, "total_ms": 89, "type": "fresh"}
+{"age_s": 84.165, "opened_at": "2026-11-17T15:31:06.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:32:30.000+00:00", "ok": true, "second": 30.0, "total_ms": 168, "type": "fresh"}
+{"at": "2026-11-17T15:32:31.000+00:00", "ok": true, "second": 31.0, "total_ms": 452, "type": "fresh"}
+{"at": "2026-11-17T15:32:32.000+00:00", "ok": true, "second": 32.0, "total_ms": 131, "type": "fresh"}
+{"at": "2026-11-17T15:32:33.000+00:00", "ok": true, "second": 33.0, "total_ms": 112, "type": "fresh"}
+{"at": "2026-11-17T15:32:34.000+00:00", "ok": true, "second": 34.0, "total_ms": 125, "type": "fresh"}
+{"at": "2026-11-17T15:32:35.000+00:00", "ok": true, "second": 35.0, "total_ms": 116, "type": "fresh"}
+{"at": "2026-11-17T15:32:36.000+00:00", "ok": true, "second": 36.0, "total_ms": 116, "type": "fresh"}
+{"at": "2026-11-17T15:32:37.000+00:00", "ok": true, "second": 37.0, "total_ms": 131, "type": "fresh"}
+{"age_s": 84.144, "opened_at": "2026-11-17T15:31:13.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:32:38.000+00:00", "ok": true, "second": 38.0, "total_ms": 149, "type": "fresh"}
+{"age_s": 89.013, "opened_at": "2026-11-17T15:31:20.000+00:00", "type": "held_retired"}
+{"age_s": 82.014, "opened_at": "2026-11-17T15:31:27.000+00:00", "type": "held_retired"}
+{"age_s": 75.014, "opened_at": "2026-11-17T15:31:34.000+00:00", "type": "held_retired"}
+{"age_s": 68.015, "opened_at": "2026-11-17T15:31:41.000+00:00", "type": "held_retired"}
+{"age_s": 61.015, "opened_at": "2026-11-17T15:31:48.000+00:00", "type": "held_retired"}
+{"age_s": 54.015, "opened_at": "2026-11-17T15:31:55.000+00:00", "type": "held_retired"}
+{"age_s": 47.016, "opened_at": "2026-11-17T15:32:02.000+00:00", "type": "held_retired"}
+{"age_s": 40.016, "opened_at": "2026-11-17T15:32:09.000+00:00", "type": "held_retired"}
+{"age_s": 33.016, "opened_at": "2026-11-17T15:32:16.000+00:00", "type": "held_retired"}
+{"age_s": 26.017, "opened_at": "2026-11-17T15:32:23.000+00:00", "type": "held_retired"}
+{"age_s": 19.017, "opened_at": "2026-11-17T15:32:30.000+00:00", "type": "held_retired"}
+{"age_s": 12.017, "opened_at": "2026-11-17T15:32:37.000+00:00", "type": "held_retired"}
+{"at": "2026-11-17T15:32:49.017+00:00", "type": "probe_finished"}

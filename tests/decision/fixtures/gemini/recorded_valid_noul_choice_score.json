@@ -1,0 +1,48 @@
+{
+  "source": "recorded live 2026-11-16 (synthetic content; response body only, no headers)",
+  "status": 200,
+  "body": {
+    "answers": {
+      "p__route": {
+        "confidence": 0.9938929522888955,
+        "choice": "in_scope",
+        "probabilities": {
+          "off_domain": 0.0061070477111044965,
+          "in_scope": 0.9938929522888955
+        },
+        "type": "choice"
+      },
+      "p__severity": {
+        "confidence": 0.8875445275296979,
+        "score": 1.8795729913351678,
+        "probabilities": {
+          "2": 0.8875445275296979,
+          "0": 0.007971536194530122,
+          "1": 0.10448393627577195
+        },
+        "legend": {
+          "2": "Creates a binding commitment",
+          "0": "Harmless",
+          "1": "Misleading"
+        },
+        "type": "score"
+      },
+      "d__ins_claim_promise": {
+        "confidence": 0.9750228939157698,
+        "noul": 0.9750228939157698,
+        "type": "noul"
+      }
+    },
+    "usage": {
+      "total_tokens": 308,
+      "total_input_tokens": 308,
+      "input_tokens_by_modality": [
+        {
+          "modality": "text",
+          "tokens": 308
+        }
+      ],
+      "total_output_tokens": 0
+    }
+  }
+}

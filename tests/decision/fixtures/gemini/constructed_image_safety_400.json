@@ -1,0 +1,10 @@
+{
+  "source": "CONSTRUCTED 2026-11-17 for M1-13 (more safety codes); NOT a recording and NOT reconstructed from one. Google's Decisions API guide (https://ai.google.dev/gemini-api/docs/decisions-api, read 2026-11-17) lists \"image_safety\" among the error codes of an HTTP 400 safety block. Taken from the documentation: the status (400) and the code. Copied from the observed prohibited_content refusal: the body shape (a string code under \"error\"). Invented: the message wording. No live probe was made, and no request content is in it.",
+  "status": 400,
+  "body": {
+    "error": {
+      "code": "image_safety",
+      "message": "Request blocked (constructed fixture: this wording is invented)."
+    }
+  }
+}

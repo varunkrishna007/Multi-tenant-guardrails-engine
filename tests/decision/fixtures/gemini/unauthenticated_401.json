@@ -1,0 +1,10 @@
+{
+  "source": "hand-written; the real shape is not yet observed",
+  "status": 401,
+  "body": {
+    "error": {
+      "code": "unauthenticated",
+      "message": "API key not valid."
+    }
+  }
+}

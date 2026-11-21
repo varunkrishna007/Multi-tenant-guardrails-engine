@@ -1,0 +1,8 @@
+{
+  "source": "hand-written; the real shape is not yet observed",
+  "status": 400,
+  "body": {
+    "code": "safety",
+    "message": "Request blocked due to safety violations (harmful content). Please modify your input and retry."
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "source": "constructed 2026-11-17 for M1-15 from the documented google.rpc shapes (google.rpc.Status with a google.rpc.RetryInfo detail; retryDelay as a google.protobuf.Duration in its JSON form, a decimal number of seconds with an 's' suffix); NOT a recording. No 429 carrying RetryInfo has been observed on this API: the status, the message wording and the delay value are all chosen for the test.",
+  "status": 429,
+  "body": {
+    "error": {
+      "code": 429,
+      "message": "Resource has been exhausted (placeholder wording).",
+      "status": "RESOURCE_EXHAUSTED",
+      "details": [
+        {
+          "@type": "type.googleapis.com/google.rpc.RetryInfo",
+          "retryDelay": "2.5s"
+        }
+      ]
+    }
+  }
+}

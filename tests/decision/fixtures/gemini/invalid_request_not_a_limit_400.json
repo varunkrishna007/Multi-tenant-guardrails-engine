@@ -1,0 +1,10 @@
+{
+  "source": "hand-written; the real shape is not yet observed",
+  "status": 400,
+  "body": {
+    "error": {
+      "code": "invalid_request",
+      "message": "* CreateDecisionRequest.model: unknown model 'gemini-decision-9'\n"
+    }
+  }
+}

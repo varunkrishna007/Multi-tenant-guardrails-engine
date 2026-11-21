@@ -1,0 +1,10 @@
+{
+  "source": "recorded live 2026-11-16 (synthetic content; response body only, no headers)",
+  "status": 400,
+  "body": {
+    "error": {
+      "message": "* CreateDecisionRequest.questions: must have between 1 and 1000 questions\n",
+      "code": "invalid_request"
+    }
+  }
+}

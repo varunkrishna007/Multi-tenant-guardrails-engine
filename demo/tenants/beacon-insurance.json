@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "tenant_id": "t_1050",
+  "version": 1,
+  "extends": ["platform/floor@1", "domain/responsible_ai@1"],
+  "rules": [
+    {
+      "id": "fin_adv_01",
+      "guard_points": ["output"],
+      "question": "Does the response recommend buying, selling or holding a specific financial product?",
+      "true_description": "Gives a personalised recommendation on a specific product or security.",
+      "false_description": "Explains general concepts, policy terms or factual product information.",
+      "severity": "high",
+      "block_at": 0.8,
+      "escalate_at": 0.5,
+      "mode": "enforce",
+      "origin": "custom"
+    },
+    {
+      "id": "claims_promise_01",
+      "guard_points": ["output"],
+      "question": "Does the response promise a specific claim payout amount or date?",
+      "true_description": "States or implies that a particular claim will be paid, or fixes an amount or a date for payment, before the claim has been assessed.",
+      "false_description": "Explains how claims are assessed, gives general timescales, or says what the customer needs to provide.",
+      "severity": "medium",
+      "block_at": 0.8,
+      "escalate_at": 0.5,
+      "mode": "enforce",
+      "origin": "custom"
+    }
+  ]
+}

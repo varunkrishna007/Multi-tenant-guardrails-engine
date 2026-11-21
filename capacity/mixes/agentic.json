@@ -1,0 +1,3 @@
+{"tenants": [{"id": "t_agentic", "weight": 3, "shape": "tool_loop"},
+             {"id": "t_docs", "weight": 1, "shape": "document"},
+             {"id": "t_chat", "weight": 1, "shape": "chat"}]}

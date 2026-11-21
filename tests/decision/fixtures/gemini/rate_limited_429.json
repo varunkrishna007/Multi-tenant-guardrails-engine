@@ -1,0 +1,10 @@
+{
+  "source": "hand-written; the real shape is not yet observed",
+  "status": 429,
+  "body": {
+    "error": {
+      "code": "rate_limited",
+      "message": "Quota exceeded for requests per minute."
+    }
+  }
+}
