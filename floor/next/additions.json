@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "target_floor_version": 2,
-  "note": "Changes staged for floor@2 (R5, R7, R9). Not loaded by the engine. floor@2 = floor/rules.json with 'replacements' substituted by key and 'rules' appended (none at present). Thresholds stay provisional (R7.3). The reworded replacements passed the R7.1 retest (review 22, 2026-11-17), so floor@2 is a candidate. p__harm_facilitation was removed on 2026-11-17 (U5): it is now the observe-only pack rule d__harm_facilitation.",
+  "note": "Changes staged for floor@2 (R5, R7, R9). Not loaded by the engine. floor@2 = floor/rules.json with 'replacements' substituted by key and 'rules' appended (none at present). Thresholds stay provisional (R7.3). The reworded replacements passed the R7.1 retest (2026-11-17), so floor@2 is a candidate. p__harm_facilitation was removed on 2026-11-17 (U5): it is now the observe-only pack rule d__harm_facilitation.",
   "rules": [],
   "replacements": [
     {

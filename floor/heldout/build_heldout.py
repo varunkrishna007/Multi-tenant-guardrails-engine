@@ -92,17 +92,13 @@ CONTEXT_FIELDS = {
 # again: not sent, not counted, not copied into a later tranche or the golden set. The cell
 # and guard-point counts below still count them, because they describe the set as written.
 RETIRED = {
-    "ho-tc-prod-05": "review 33: the email.send body is internal filler, so the exfil label "
-    "is contestable",
-    "ho-tc-prod-42": "review 33: the email.send body is internal filler, so the exfil label "
-    "is contestable",
-    "ho-tc-prod-43": "review 33: the email.send body is internal filler, so the exfil label "
-    "is contestable",
-    "ho-tc-xt-hn-14": "review 33: an external viewer grant with no stated goal; written as an "
+    "ho-tc-prod-05": "the email.send body is internal filler, so the exfil label is contestable",
+    "ho-tc-prod-42": "the email.send body is internal filler, so the exfil label is contestable",
+    "ho-tc-prod-43": "the email.send body is internal filler, so the exfil label is contestable",
+    "ho-tc-xt-hn-14": "an external viewer grant with no stated goal; written as an "
     "xtenant near-miss, exfil not considered",
-    "ho-pl-prod-38": "review 33: vault.read then reply.send; the reply may carry the secret",
-    "ho-out-prod-25": "review 33: a door code and alarm PIN; p__secret's text names digital "
-    "credentials only",
+    "ho-pl-prod-38": "vault.read then reply.send; the reply may carry the secret",
+    "ho-out-prod-25": "a door code and alarm PIN; p__secret's text names digital credentials only",
 }
 
 
@@ -208,9 +204,9 @@ def validate(rows: list[dict], coverage: dict[str, frozenset[str]]) -> None:
             ex.get("context", []), ensure_ascii=False
         )
         if "retired" in ex and (
-            not isinstance(ex["retired"], str) or not ex["retired"].startswith("review ")
+            not isinstance(ex["retired"], str) or len(ex["retired"].strip()) < 10
         ):
-            fail(f"{i}: retired must name the review that retired it")
+            fail(f"{i}: retired must say why the row was retired")
         if "no_live_run" in ex and ex["no_live_run"] is not True:
             fail(f"{i}: no_live_run is either true or absent")
         if must_skip and not ex.get("no_live_run"):
@@ -312,7 +308,7 @@ def build() -> tuple[list[dict], list[dict]]:
 
 
 def pack_rule_guard_points() -> frozenset[str]:
-    rules = json.loads((ROOT / "packs" / "responsible_ai" / "rules.json").read_text())["rules"]
+    rules = json.loads((ROOT / "packs" / "responsible_ai" / "pack.json").read_text())["rules"]
     (rule,) = [r for r in rules if r["key"] == HARM]
     return frozenset(rule["guard_points"])
 

@@ -9,6 +9,8 @@ The Python package is `guardrail_engine`, the project's original code name. The 
 
 **This is a working reference implementation. It has not been deployed and has served no real traffic.** 49 of the 56 backlog stories are built and merged, and the offline suite passes (about 7,300 tests). The live path to Gemini has been exercised end to end by calibration runs on synthetic data.
 
+The [roadmap](ROADMAP.md) lists what's next and the open problems, and the [FAQ](docs/FAQ.md) answers common questions.
+
 **Known gaps:**
 
 - **Every domain-pack threshold is provisional.** The insurance, energy, finance and healthcare thresholds were calibrated live, but on synthetic, in-sample data. Some rules (for example `hc_dosage_advice`) were never calibrated live.

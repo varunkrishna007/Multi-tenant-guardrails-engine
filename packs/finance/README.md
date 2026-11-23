@@ -9,3 +9,7 @@ bounds; **the R3 finance and healthcare figures still need legal sign-off before
 ## Latest version
 
 `pack.v2.json` is **@2**: thresholds from the 2026-11-19 live run. Every value is provisional; earlier versions never change. Derived by `python -m packs.derive_versions`. See [docs/m4-08-m5-04-pack-versions-2026-11-19.md](../../docs/m4-08-m5-04-pack-versions-2026-11-19.md).
+
+## What `d__fin_payment_instruction` does not do
+
+The rule asks whether a tool call or plan moves money **without naming** an approver or an approval reference. It can't check that the reference is real. An agent that has been injected can make one up, and the rule will pass it. Treat the rule as a second line of defence. The real control belongs in the money-moving tool itself: a credential or approval token that the tool verifies, bound to the amount and the payee.
