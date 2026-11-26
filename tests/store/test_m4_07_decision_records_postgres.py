@@ -659,3 +659,44 @@ async def test_a_connection_that_comes_with_a_tenant_setting_is_refused_for_a_wr
             await PostgresDecisionStore(pool).append_many([make_record(ACME)])
     finally:
         await pool.close()
+
+
+# ---------------------------------------------------------------------- M7-04 keyed records
+
+
+async def test_a_keyed_record_is_kept_once_per_tenant_and_its_rule_rows_with_it(env):
+    fired_record = make_record(
+        ACME, NOW, fired_entries=(fired("t__adv", "tenant", 0.9),), decision=Decision.BLOCK
+    )
+    other_tenants_record = make_record(OTHER, NOW)
+    await env.store.append_keyed([fired_record], ["k1"])
+    await env.store.append_keyed([fired_record], ["k1"])  # the same key again: skipped
+    await env.store.append_keyed([make_record(ACME, NOW)], ["k2"])
+    await env.store.append_keyed([other_tenants_record], ["k1"])  # keys are per tenant
+    assert await env.owner.fetchval("SELECT count(*) FROM decision_records") == 3
+    rule_rows = await env.admin.fetchval(
+        f'SELECT count(*) FROM "{env.schema}".decision_record_rules'
+    )
+    assert rule_rows == 1  # the skipped record added none
+    keys = await env.owner.fetch("SELECT tenant_id, record_key FROM decision_records")
+    assert sorted((r["tenant_id"], r["record_key"]) for r in keys) == [
+        (ACME, "k1"),
+        (ACME, "k2"),
+        (OTHER, "k1"),
+    ]
+
+
+async def test_records_without_a_key_never_conflict(env):
+    same = make_record(ACME, NOW, request_id="same")
+    await env.store.append_many([same, same])
+    await env.store.append_many([same])
+    assert await env.owner.fetchval("SELECT count(*) FROM decision_records") == 3
+
+
+async def test_a_keyed_batch_is_one_tenants_and_carries_a_key_each(env):
+    with pytest.raises(ValueError):
+        await env.store.append_keyed([make_record(ACME), make_record(OTHER)], ["a", "b"])
+    with pytest.raises(ValueError):
+        await env.store.append_keyed([make_record(None)], ["a"])
+    with pytest.raises(ValueError):
+        await env.store.append_keyed([make_record(ACME)], [])

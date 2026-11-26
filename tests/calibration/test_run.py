@@ -38,6 +38,7 @@ from calibration.run import (
     retest,
     rule_profile,
     run_all,
+    secret_blocked,
 )
 
 from guardrail_engine.decision import FailureKind, FakeDecisionModel
@@ -47,6 +48,10 @@ ROOT = Path(__file__).resolve().parents[2]
 GOLDEN = ROOT / "floor" / "golden.jsonl"
 RULES = ROOT / "floor" / "rules.json"
 ADDITIONS = ROOT / "floor" / "next" / "additions.json"
+
+
+def secret_blocked_id(rows, record) -> bool:
+    return any(r["id"] == record["example_id"] and secret_blocked(r) for r in rows)
 
 
 @pytest.fixture(scope="module")
@@ -257,7 +262,18 @@ async def test_full_run_with_the_fake_model(tmp_path, setup, rows):
     calls = [r for r in records if r["type"] == "call"]
     plan = plan_calls(rows, setup, 3)
     assert len([r for r in calls if r["phase"] == "indep"]) == plan["indep"]
-    assert len([r for r in calls if r["phase"] == "main"]) == plan["main"] == len(rows) * 3
+    # M7-01: a row the Guard Service blocks before any model call is recorded as
+    # deterministic, three draws of it, and never sent
+    blocked = [r for r in rows if secret_blocked(r)]
+    assert blocked and plan["secret_blocked_rows"] == len(blocked)
+    sent = [r for r in calls if r["phase"] == "main" and r["outcome"] != "deterministic"]
+    assert len(sent) == plan["main"] == (len(rows) - len(blocked)) * 3
+    skipped = [r for r in calls if r["outcome"] == "deterministic"]
+    assert len(skipped) == len(blocked) * 3 and {r["example_id"] for r in skipped} == {
+        r["id"] for r in blocked
+    }
+    assert all(r["probabilities"] == {} and r["usage_input_tokens"] is None for r in skipped)
+    assert not [r for r in calls if r["phase"] == "indep" and secret_blocked_id(rows, r)]
 
     # An example's draws use distinct nonces; draw 1 of an independence example
     # reuses its independence nonce.
@@ -819,3 +835,27 @@ async def test_the_gate_negatives_are_split_and_a_miss_caught_by_another_rule_is
     assert "| 0 of 0 / 0 of 0 |" in ai  # that rule missed nothing
     assert "hard negatives (`hard_negative:*`)" in report
     assert "production-shaped (`production:*`)" in report
+
+
+async def test_the_direct_harness_never_sends_a_row_with_a_known_format_credential(
+    tmp_path, setup, rows
+):
+    """M7-01: the Guard Service blocks such a row before any model call, so the harness sends
+    nothing for it: the fake model sees no request carrying its credential, and the row's
+    draws are recorded as deterministic (no score, never incomplete)."""
+    from calibration.run import incomplete_examples, secret_detector
+
+    blocked = [r for r in rows if secret_blocked(r)]
+    assert blocked
+    fake = hashed_fake()
+    runner = make_runner(out=tmp_path / "r.jsonl", model=fake, setup=setup)
+    await run_all(runner, blocked, [], draws=3, log=lambda s: None)
+    assert fake.calls == [] and runner.calls == 0
+    records = [json.loads(x) for x in runner.out.read_text().splitlines()]
+    assert {r["outcome"] for r in records if r["type"] == "call"} == {"deterministic"}
+    assert incomplete_examples(records, 3) == {}
+    # a resumed run makes no new records for them
+    await run_all(make_runner(out=runner.out, model=fake, setup=setup), blocked, records, draws=3,
+                  log=lambda s: None)  # fmt: skip
+    assert len(runner.out.read_text().splitlines()) == len(records)
+    assert all(secret_detector().count(r["content"]) for r in blocked)

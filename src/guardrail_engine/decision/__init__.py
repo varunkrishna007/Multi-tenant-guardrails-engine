@@ -1,6 +1,6 @@
 """Decision model port, question/answer contract, and the test fake."""
 
-from guardrail_engine.decision.fake import FakeCall, FakeDecisionModel
+from guardrail_engine.decision.fake import FakeCall, FakeDecisionModel, MarkedFakeDecisionModel
 from guardrail_engine.decision.limits import (
     CONTEXT_TOKENS,
     KEY_PATTERN,
@@ -88,6 +88,7 @@ __all__ = [
     "FailureKind",
     "FakeCall",
     "FakeDecisionModel",
+    "MarkedFakeDecisionModel",
     "NoulAnswer",
     "NoulCriteria",
     "NoulQuestion",

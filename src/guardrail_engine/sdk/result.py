@@ -17,6 +17,10 @@ is still handled safely: the content is withheld.
 * ``failure_reason``: :class:`FailureReason`, or None when the check didn't fail.
 * ``capacity_limited``: the gateway refused the call for lack of capacity (R8), as opposed
   to a provider failure.
+* ``degraded``: the provider is not answering and the engine failed the check at once instead of
+  waiting for it (M7-11); ``failure_reason`` is then ``provider_degraded``. The result is still
+  a ``model_failure`` that withholds the content, and ``retryable``: try again after
+  ``retry_after_ms``. No guard point lets content through during an outage.
 * ``retry_after_ms``: how long to wait before retrying, when the gateway supplied it (100-10,000
   ms, except for ``quota_exhausted``: the time until the quota rolls, unclamped).
 """
@@ -50,6 +54,16 @@ class FailureReason(StrEnum):
     AUTH = "auth"
     """The provider rejected the platform's credentials. A platform problem, not the
     caller's."""
+    PROVIDER_DEGRADED = "provider_degraded"
+    """The provider is not answering (a run of timeouts or unavailable answers) and the platform
+    failed the check at once instead of waiting (M7-11). Retryable: try again after
+    ``retry_after_ms``, the time to the platform's next probe. Not a capacity refusal
+    (``capacity_limited`` is false)."""
+    GUARD_UNREACHABLE = "guard_unreachable"
+    """The guard service could not be reached from the runtime (M7-10): a connect error, a timeout,
+    a 5xx or an answer that wasn't the contract's. Raised by the SDK's remote checker, never by
+    the service. The content is withheld and the result is retryable. It says "my guard service is
+    down", apart from ``unavailable`` and ``timeout``, which say the provider is."""
     TIMEOUT = "timeout"
     """No answer within the check's budget."""
     UNAVAILABLE = "unavailable"
@@ -132,6 +146,8 @@ class GuardResult:
     failure_reason: FailureReason | None
     capacity_limited: bool
     retry_after_ms: int | None
+    degraded: bool = False
+    """M7-11: the check failed because the provider is degraded (see the module text)."""
     retry_of: str | None = None
     """When this result comes from :meth:`Guard.check_with_retry`'s single retry: the
     request id of the first, retryable check."""
@@ -174,8 +190,13 @@ class GuardResult:
         kind = _text(getattr(verdict, "failure_kind", None))
         withheld_failure = not released and reason == "model_failure"
         capacity = withheld_failure and bool(getattr(verdict, "capacity_limited", False))
+        degraded = withheld_failure and getattr(verdict, "degraded", False) is True
         failure = failure_reason_of(
-            reason, kind, getattr(verdict, "failure_reason", None), capacity_limited=capacity
+            reason,
+            kind,
+            getattr(verdict, "failure_reason", None),
+            capacity_limited=capacity,
+            degraded=degraded,
         )
         retry_after = getattr(verdict, "retry_after_ms", None) if withheld_failure else None
         return cls(
@@ -195,20 +216,29 @@ class GuardResult:
             failure_reason=failure,
             capacity_limited=capacity,
             retry_after_ms=retry_after if isinstance(retry_after, int) else None,
+            degraded=degraded,
         )
 
 
 def failure_reason_of(
-    reason: str, kind: str | None, code: object, *, capacity_limited: bool = False
+    reason: str,
+    kind: str | None,
+    code: object,
+    *,
+    capacity_limited: bool = False,
+    degraded: bool = False,
 ) -> FailureReason | None:
     """The stable :class:`FailureReason` for a verdict's reason, failure kind and failure
     code; None when the check didn't fail. A capacity reason is given only when the verdict
     says ``capacity_limited`` (the gateway's own signal); a provider reason that
-    happens to spell one is read by its failure kind like any other."""
+    happens to spell one is read by its failure kind like any other. ``degraded`` (the engine's
+    own signal, M7-11) reads as ``provider_degraded``, never from the code."""
     if reason == "contract_violation":
         return FailureReason.CONTRACT_VIOLATION
     if reason != "model_failure":
         return None
+    if degraded:
+        return FailureReason.PROVIDER_DEGRADED
     if capacity_limited and code in {r.value for r in CAPACITY_REASONS}:
         return FailureReason(code)
     return _KIND_TO_REASON.get(kind or "", FailureReason.OTHER)

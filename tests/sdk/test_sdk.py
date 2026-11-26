@@ -192,7 +192,8 @@ async def test_each_failure_maps_to_the_stable_enum(v, expected, capacity):
 def test_the_enum_is_the_agreed_contract_and_covers_the_gateway():
     assert [r.value for r in FailureReason] == [
         "admission_wait", "admission_queue_full", "token_rate", "quota_exhausted", "orphan_cap",
-        "auth", "timeout", "unavailable", "other", "contract_violation",
+        "auth", "provider_degraded", "guard_unreachable", "timeout", "unavailable", "other",
+        "contract_violation",
     ]  # fmt: skip
     assert {r.value for r in CAPACITY_REASONS} >= gateway.CAPACITY_REASONS
     assert {r.value for r in CAPACITY_REASONS} == gateway.CAPACITY_REASONS
@@ -296,6 +297,7 @@ def test_the_guard_exposes_checking_only():
     wrapped engine."""
     public = {n for n in dir(Guard) if not n.startswith("_")}
     assert public == {
+        "aclose",
         "check",
         "check_source",
         "check_with_retry",

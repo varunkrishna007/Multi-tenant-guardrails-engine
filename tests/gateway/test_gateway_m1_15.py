@@ -551,7 +551,7 @@ class TestInFlightAtStart:
         assert result.timing.in_flight_at_start is None
 
 
-# ---------------------------------------------------------------------------- R19 minors
+# ---------------------------------------------------------------------------- smaller cases
 
 
 def unrecognised(code) -> Failed:

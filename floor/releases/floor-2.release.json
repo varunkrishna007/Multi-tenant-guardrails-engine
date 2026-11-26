@@ -1,0 +1,40 @@
+{
+  "approvals": [
+    {
+      "at": "2026-11-24T12:02:30.912458+00:00",
+      "operator": "https://simulation.invalid/#simulation-operator-a",
+      "urgent": false
+    },
+    {
+      "at": "2026-11-24T12:02:30.912595+00:00",
+      "operator": "https://simulation.invalid/#simulation-operator-b",
+      "urgent": false
+    }
+  ],
+  "evidence": {
+    "corpus_sha256": "sha256:236f6b69168c5653b59d35f594c86b89d440811fb2a28f58569f0ad3334a8a6f",
+    "draws": 3,
+    "floor_content_hash": "sha256:521acbf359f149a4261d160381f70069ea9f5baff8c8c39c442beb0a6a236af6",
+    "floor_version": 2,
+    "gate": {
+      "exit_code": 0,
+      "passed": true
+    },
+    "mode": "live",
+    "nonce_seed": "f2aeae493d5df32d646de424868d0728",
+    "report_sha256": "sha256:6befa5d74d654d65ec60e787b69ffa8ec2b747048ac2a8583b4e075274e13196",
+    "rows": 172
+  },
+  "floor_hash": "sha256:521acbf359f149a4261d160381f70069ea9f5baff8c8c39c442beb0a6a236af6",
+  "floor_version": 2,
+  "halted": false,
+  "note": "A simulated release: the two operators are test identities, and the report is the live red-team run of floor@2 (redteam/floor2.live.report.json). Written by `python -m floor.simulate_release`; an engine in the test environment replays it.",
+  "proposed_at": "2026-11-24T12:02:30.912458+00:00",
+  "proposed_by": "https://simulation.invalid/#simulation-operator-a",
+  "released": true,
+  "released_at": "2026-11-24T12:02:30.912595+00:00",
+  "report_file": "../../redteam/floor2.live.report.json",
+  "schema_version": 1,
+  "security_urgent": false,
+  "staging_window_hours": 72.0
+}

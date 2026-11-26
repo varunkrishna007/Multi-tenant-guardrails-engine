@@ -156,12 +156,20 @@ class Guard:
     def __repr__(self) -> str:
         return "Guard()"
 
+    async def aclose(self) -> None:
+        """Close the checker's connections, if it has any (a remote one does)."""
+        close = getattr(self._checker, "aclose", None)
+        if close is not None:
+            await close()
+
     async def check(self, guard_point: str, content: str, ctx: GuardContext) -> GuardResult:
         """Check ``content`` at ``guard_point``. Release or execute it only if the result's
         ``released`` is true (``decision == "allow"``)."""
         if not isinstance(ctx, GuardContext):
             raise TypeError("ctx must be a GuardContext carrying the signed tenant context")
         verdict = await self._checker.check(ctx.to_check_context(), guard_point, content)
+        if isinstance(verdict, GuardResult):  # a remote checker returns the public result as is
+            return verdict
         return GuardResult.from_verdict(verdict)
 
     def start_input_guard(self, content: str, ctx: GuardContext) -> InputGate:

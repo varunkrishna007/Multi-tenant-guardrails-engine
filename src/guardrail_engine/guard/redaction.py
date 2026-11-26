@@ -10,6 +10,12 @@ PII of a configured kind (:mod:`guardrail_engine.guard.pii`) appears in a ``deci
 * the description of each registered tool the conversation refers to (tenant-written free
   text, rendered in the ``tool_metadata`` section).
 
+**Credentials** (M7-01): each credential in a known format is replaced by ``[SECRET]`` in
+the same texts, so a user's own key never reaches the provider
+(:mod:`guardrail_engine.deterministic.secret_formats`). A credential in the *content* at
+``plan``, ``tool_call``, ``tool_result`` or ``output`` never gets this far: it is a floor
+block first. The model question ``p__secret`` stays for the formats no pattern recognises.
+
 Not redacted: the trusted header lines (``TENANT DOMAIN``, ``TENANT``, ``GUARD POINT``, the
 instruction line), which carry only platform-validated values, the names of registered
 tools (registry identifiers, needed to find the tool), and the questions (rule text).
@@ -34,6 +40,7 @@ from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 
+from guardrail_engine.deterministic.secret_formats import SecretDetector
 from guardrail_engine.guard.pii import (
     DEFAULT_PII_DETECTOR,
     PLACEHOLDERS,
@@ -95,6 +102,9 @@ class RedactedRequest:
     deny_counts: Mapping[str, int] = field(default_factory=dict)
     """M3-01: matches replaced per ``redact`` deny pattern id, over the same texts. Counts
     only; empty without a ``deny_redactor``."""
+    secret_count: int = 0
+    """M7-01: credentials in a known format replaced by ``[SECRET]``, over the same texts.
+    A count only; 0 without a ``secrets`` detector."""
 
 
 def redact_text(text: str, detector: PiiDetector = DEFAULT_PII_DETECTOR) -> RedactedText:
@@ -130,6 +140,7 @@ def redact_request(
     tools: Mapping[str, ToolInfo],
     detector: PiiDetector = DEFAULT_PII_DETECTOR,
     deny_redactor: DenyRedactor | None = None,
+    secrets: SecretDetector | None = None,
 ) -> RedactedRequest:
     """Redact a check's content, its conversation and the descriptions of the registered
     tools it refers to (see the module docstring for exactly which fields). ``conversation``
@@ -137,11 +148,21 @@ def redact_request(
 
     ``deny_redactor`` (M3-01) is applied to each of those texts **before** the PII detector:
     it returns the text with a tenant's ``redact`` deny patterns replaced, and the matches
-    per rule id."""
+    per rule id.
+
+    ``secrets`` (M7-01) is applied first, before the deny patterns and the PII detector: each
+    credential of a known format (:mod:`guardrail_engine.deterministic.secret_formats`) is
+    replaced by ``[SECRET]``. It is off when None, which is what a harness that scores rows
+    as written passes; the Guard Service always passes one."""
     counts: Counter[PiiKind] = Counter()
     deny_counts: Counter[str] = Counter()
+    secret_count = 0
 
     def red(text: str) -> str:
+        nonlocal secret_count
+        if secrets is not None:
+            text, replaced = secrets.redact(text)
+            secret_count += replaced
         if deny_redactor is not None:
             text, matched = deny_redactor(text)
             deny_counts.update(matched)
@@ -176,4 +197,5 @@ def redact_request(
         tools=referenced,
         counts={kind: counts[kind] for kind in PiiKind if counts[kind]},
         deny_counts=dict(deny_counts),
+        secret_count=secret_count,
     )

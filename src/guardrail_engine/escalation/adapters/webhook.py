@@ -122,6 +122,7 @@ class EscalationWebhookSink:
                 "content_sha256": notice.content_sha256,
                 "content_available": notice.content_available,
                 "rules": [{"key": k, "action": a, "mode": m} for k, a, m in notice.rules],
+                "candidate_rules": list(notice.candidate_rules),
                 "resolve": {
                     "method": "POST",
                     "path": resolve_path(notice.tenant_id, notice.item_id),

@@ -93,7 +93,9 @@ class Reason(StrEnum):
     """Deterministic block: the content alone exceeds the guard point's max content tokens.
     Never truncated; no model call."""
     PROVIDER_SAFETY = "provider_safety"
-    """The provider refused the content (HTTP 400 ``safety``). Always a block (PF-12)."""
+    """The provider refused the content (HTTP 400 ``safety``). A block (PF-12), except where the
+    guard point has an enforce rule that may only escalate: then an escalate, so a person sees
+    what the provider would not judge (M7-08)."""
     MODEL_FAILURE = "model_failure"
     """The decision call failed; each rule was resolved by its fail mode (B1). See
     ``failure_kind``. The decision is usually block (the floor fails closed)."""
@@ -129,7 +131,7 @@ class Reason(StrEnum):
 
 CANONICAL: dict[Decision, frozenset[Reason]] = {
     Decision.ALLOW: frozenset({Reason.POLICY, Reason.NO_QUESTIONS, Reason.MODEL_FAILURE}),
-    Decision.ESCALATE: frozenset({Reason.POLICY, Reason.DETERMINISTIC}),
+    Decision.ESCALATE: frozenset({Reason.POLICY, Reason.DETERMINISTIC, Reason.PROVIDER_SAFETY}),
     Decision.BLOCK: frozenset(
         {
             Reason.POLICY,
@@ -387,8 +389,9 @@ class Verdict(_Frozen):
     """A structured code, never free text (:func:`recorded_code`). For a model failure: the
     provider's own reason, when it gave one (e.g. ``API_KEY_INVALID``), or the gateway's when
     it refused the call itself: ``admission_wait`` or ``admission_queue_full`` (M1-04
-    admission control), ``orphan_cap``. For ``provider_safety``: the provider's refusal code
-    (e.g. ``safety``)."""
+    admission control), ``orphan_cap``, or ``provider_degraded`` (M7-11: the provider is not
+    answering and the gateway failed the check at once). For ``provider_safety``: the provider's
+    refusal code (e.g. ``safety``)."""
 
     content_sha256: str | None = None
     """``sha256:<hex>`` of the **pre-redaction** content: the content as submitted, before
@@ -429,6 +432,13 @@ class Verdict(_Frozen):
     failed the decision call for a reason it can time (admission, the orphan cap, an open
     auth breaker). Computed by the gateway from its own state, never from the provider.
     Only on a ``model_failure`` verdict that didn't release the content; None otherwise."""
+    degraded: bool = False
+    """M7-11: the check failed because the provider is degraded: the gateway's provider-health
+    breaker (or an operator's hold) refused the call at once, or the call was its probe and
+    failed. Set from the gateway's own signal, never from a reason string. Only on a
+    ``model_failure`` verdict; the decision is whatever the rules' fail modes gave (the floor
+    blocks), and ``failure_reason`` is ``provider_degraded`` when the call was refused at once.
+    ``retry_after_ms`` is then the time to the gateway's next probe."""
     capacity_limited: bool = False
     """R8: the gateway refused the decision call for lack of capacity (``admission_wait``,
     ``admission_queue_full``, ``orphan_cap``; ``token_rate`` with M3-10), as opposed to a

@@ -1,0 +1,6 @@
+engine built with test-only overrides: nonce_source, pii_detector (environment=test)
+engine built accepting v1 HMAC signed contexts (signed_context.allow_v1_hmac=False, mode=v1, environment=test): the migration to v2 is not finished
+  trial: draw 1 done (137 rows, both arms)
+  trial: draw 2 done (137 rows, both arms)
+  trial: draw 3 done (137 rows, both arms)
+checks made: 822

@@ -36,6 +36,15 @@ class AlertSeverity(StrEnum):
 
 ALERT_AUTH_FAILURE = "decision_auth_failure"
 """The provider rejected the key. Every check on that key now fails (B1: the floor blocks)."""
+ALERT_PROVIDER_DEGRADED = "decision_provider_degraded"
+"""M7-11: the provider stopped answering (a run of timeouts or unavailable answers, or a failure
+rate over half of the recent calls), or a platform operator holds it degraded. Every check on
+the key now fails at once as ``provider_degraded`` (B1: the floor blocks) until a probe is
+answered or the operator lifts it. A page; ``reason`` is ``consecutive_failures``,
+``failure_rate`` or ``operator``. Per process: each replica raises its own."""
+ALERT_PROVIDER_RECOVERED = "decision_provider_recovered"
+"""M7-11: the provider answers again (a probe was answered), or the operator lifted the hold.
+A warning; ``reason`` is ``probe`` or ``operator``."""
 ALERT_USAGE_UNKNOWN = "decision_usage_unknown"
 """An answered call had no usable ``usage`` block, so its tokens could not be metered."""
 ALERT_CANCEL_IGNORED = "decision_cancel_ignored"
@@ -97,6 +106,16 @@ ALERT_AUDIT_RECORDS_DROPPED = "audit_records_dropped"
 full, the database refused them repeatedly, or they were still queued at shutdown): the audit
 trail has a gap (``count`` = how many since the last such alert). A warning. Raised outside the
 check path, from the writer's own task."""
+ALERT_AUDIT_SPILL_NEAR_CAP = "audit_spill_near_cap"
+"""M7-04: the spill file of regulated tenants' decision records has reached most of its size cap:
+the database isn't taking the records, or replay isn't keeping up. Past the cap those records
+are dropped (and ``audit_records_dropped`` is raised). A warning, raised from the writer's own
+task, at most once per its alert interval."""
+ALERT_REFUSAL_ESCALATIONS_CAPPED = "refusal_escalations_capped"
+"""M7-08: a tenant's cap on provider refusals sent to a person was spent at a guard point
+(``guard.refusal_escalation_cap`` in ``guard.refusal_escalation_window_s``); further refusals are
+blocks until the window passes. A warning, at most one per tenant per window. A flood of refused
+texts, or a cap set too low for the traffic."""
 ALERT_STORED_CONTENT_DROPPED = "stored_content_dropped"
 """M5-03: stored content (R3 class C) was dropped before it was written (the write-behind queue was
 full, the database refused it repeatedly, or it was still queued at shutdown). The checks were

@@ -368,7 +368,8 @@ async def test_a_large_request_is_redacted_in_a_worker_thread(
         verdict = await env.check(ALPHA, content=text, conversation=context)
     assert verdict.decision is Decision.ALLOW
     assert verdict.pii_redacted == {PiiKind.CARD: 1} and CARD not in env.fake.calls[0].input
-    assert len(calls) == (1 if threaded else 0)
+    # (the known-format credential scan of M7-01 is a worker-thread call of its own)
+    assert len([fn for fn in calls if fn.__name__ == "redact"]) == (1 if threaded else 0)
 
 
 async def test_a_detector_failure_in_the_worker_thread_still_fails_closed():

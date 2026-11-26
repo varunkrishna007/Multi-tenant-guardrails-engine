@@ -13,6 +13,13 @@ from pathlib import Path
 from guardrail_engine.policy.catalog import FloorVersion
 from guardrail_engine.policy.floor_loader import parse_floor_json
 
+FLOOR_DIR = Path(__file__).resolve().parents[2] / "floor"
+"""The repository's ``floor/`` directory (a source checkout)."""
+FLOOR_FILES = [str(FLOOR_DIR / "rules.json"), str(FLOOR_DIR / "rules.v2.json")]
+"""The floor versions in the catalog: floor@1 (the baseline) and floor@2."""
+RELEASE_RECORDS = [str(FLOOR_DIR / "releases" / "floor-2.release.json")]
+"""The floor release records the local simulation replays (M7-05)."""
+
 
 def load_floor_file(path: str | os.PathLike[str]) -> FloorVersion:
     """Read ``path`` (for example ``floor/rules.json``) and return its :class:`FloorVersion`.

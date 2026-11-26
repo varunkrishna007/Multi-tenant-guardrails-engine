@@ -106,6 +106,8 @@ ENDPOINTS: tuple[Endpoint, ...] = (
     Endpoint("GET", "/v1/platform/redteam/nightly/{tenant_id}", PLATFORM),
     Endpoint("GET", "/v1/platform/redteam/quarantine", PLATFORM),
     Endpoint("POST", "/v1/platform/redteam/quarantine/clear", PLATFORM),
+    Endpoint("GET", "/v1/platform/provider/degraded", PLATFORM),
+    Endpoint("PUT", "/v1/platform/provider/degraded", PLATFORM),
     Endpoint("GET", "/v1/platform/packs", PLATFORM),
     Endpoint("PUT", "/v1/platform/packs/{pack}", PLATFORM),
 )

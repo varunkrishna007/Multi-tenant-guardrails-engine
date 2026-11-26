@@ -16,6 +16,10 @@ validation error then, so nothing is compiled on the check path. The Guard Servi
                        tool registry holds for the tool (M3-03)
 ``xtenant_identifier`` another tenant's identifier in a ``tool_result`` or ``output``
 ``size_limit``         content over the guard point's maximum content tokens
+``p__secret``          a credential in a known format (M7-01): a ``block`` at ``plan``,
+                       ``tool_call``, ``tool_result`` and ``output``, a ``redact`` at
+                       ``input`` (the floor rule's own id: the model question stays for
+                       the formats nothing here can recognise)
 =====================  ==============================================================
 
 This module imports nothing from ``guard`` or ``policy``, so both can depend on it.
@@ -49,6 +53,8 @@ class DeterministicKind(StrEnum):
     TOOL_SCHEMA = "tool_schema"
     CROSS_TENANT = "cross_tenant"
     SIZE_LIMIT = "size_limit"
+    SECRET_FORMAT = "secret_format"
+    REPEAT_ATTEMPT = "repeat_attempt"
 
 
 REDACTION_PLACEHOLDER = "[REDACTED]"
@@ -61,6 +67,11 @@ TOOL_MISMATCH_RULE = "tool_mismatch"
 TOOL_SCHEMA_RULE = "tool_schema"
 CROSS_TENANT_RULE = "xtenant_identifier"
 SIZE_LIMIT_RULE = "size_limit"
+SECRET_RULE = "p__secret"
+SECRET_PLACEHOLDER = "[SECRET]"
+"""What a known-format credential is replaced by at ``input`` (M7-01). The same for every
+format, so the placeholder says nothing about which kind of credential was removed."""
+REPEAT_ATTEMPT_RULE = "repeat_attempt"
 
 
 @dataclass(frozen=True, slots=True)

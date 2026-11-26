@@ -213,6 +213,9 @@ def test_schema_is_a_plain_sql_file_shipped_inside_the_package():
         "046_gemini_projects.sql",
         "047_stored_content.sql",
         "051_nightly_redteam.sql",
+        "054_decision_record_keys.sql",
+        "055_escalation_candidate_rules.sql",
+        "056_provider_degraded_actions.sql",
     )
     tenant_rule = migration_sql(MIGRATIONS[1])
     assert "CHECK (tenant_id ~ '^t_[0-9a-z]{1,32}$') NOT VALID" in tenant_rule

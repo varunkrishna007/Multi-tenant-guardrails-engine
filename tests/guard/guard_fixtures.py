@@ -10,8 +10,12 @@ document builders from ``tests/policy/policy_fixtures.py``.
 from __future__ import annotations
 
 import asyncio
+import sys
 from collections.abc import Iterable
+from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "policy"))  # policy_fixtures
 
 from policy_fixtures import floor_rule, make_floor, make_pack, pack_rule
 

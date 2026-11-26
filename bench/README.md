@@ -68,3 +68,12 @@ the adapter directly. That is decided (M1-11, 2026-11-17): latency benches may k
 wiring. Anything that scores examples to set or validate thresholds goes through the engine
 built by `build_engine` (`calibration/engine_path.py`), and so does the demo
 (`demo/run_demo.py`).
+
+## M7-10: the process boundary
+
+`wire_overhead.py` sends the same checks to an in-process engine and to the guard service running
+as a separate process, and reports the difference. Offline: the fake model answers at once.
+
+    uv run --extra service python -m bench.wire_overhead --requests 800 --out result.md
+
+Result: `results/m7-10-wire-overhead.md`.

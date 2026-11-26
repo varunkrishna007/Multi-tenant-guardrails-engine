@@ -15,6 +15,7 @@ from guardrail_engine.decision.adapters.gemini import GeminiConfig
 from guardrail_engine.deterministic import NoOtherTenantIdentifiers
 from guardrail_engine.engine import (
     DEFAULT_FLOOR_FILE,
+    NEXT_FLOOR_FILE,
     EngineSettings,
     GeminiSettings,
     SettingsError,
@@ -48,7 +49,7 @@ class TestOneHomePerSetting:
         assert s.guard.store_timeout_s == GuardConfig().store_timeout_s
         gemini = s.gemini.model_dump()
         assert gemini == {k: gemini_defaults()[k] for k in gemini}
-        assert s.catalog.floor_files == (DEFAULT_FLOOR_FILE,)
+        assert s.catalog.floor_files == (DEFAULT_FLOOR_FILE, NEXT_FLOOR_FILE)
         assert s.store.kind == "memory"
 
     def test_documented_defaults(self):

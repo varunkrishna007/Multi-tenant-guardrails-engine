@@ -3,6 +3,7 @@ bind: a superuser, BYPASSRLS, a table owner, or a member of the operator role. N
 GUARDRAIL_TEST_PG_DSN (and a DSN role allowed to create roles); skipped without it."""
 
 import sys
+import tempfile
 import uuid
 from pathlib import Path
 
@@ -87,8 +88,16 @@ async def test_a_role_that_does_not_exist_is_no_membership(app_pool):
 
 
 async def build(environment, pool, operator_pool=None):
+    # A production engine with a Postgres store needs somewhere to spill regulated tenants'
+    # decision records (M7-04).
+    spill_dir = Path(tempfile.mkdtemp())
+    spill_dir.chmod(0o700)
     return await build_engine(
-        settings(environment, store={"kind": "postgres", "operator_role": "m202_operator"}),
+        settings(
+            environment,
+            store={"kind": "postgres", "operator_role": "m202_operator"},
+            decision_spill={"file": str(spill_dir / "spill.jsonl")},
+        ),
         verifier=verifier(), tenants=directory(), model=FakeDecisionModel(), pg_pool=pool,
         pg_operator_pool=operator_pool,
     )  # fmt: skip

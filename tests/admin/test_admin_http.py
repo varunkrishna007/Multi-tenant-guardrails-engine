@@ -346,6 +346,7 @@ def test_the_routes_are_the_endpoint_table_rows_built_so_far(app):
     not_built_yet = (
         "/platform/packs",  # later
         "/guardrails/tier",  # M5-01: only when the app is given a tier service (test_m5_01_http)
+        "/provider/degraded",  # M7-11: only when the app is given the provider-health service
     )
     table = {
         (e.method, e.route) for e in ENDPOINTS if not any(part in e.route for part in not_built_yet)

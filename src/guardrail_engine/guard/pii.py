@@ -15,12 +15,16 @@ or M3-01's richer engine on the same port) redacts the same way.
     uk_nino            [NINO]            UK National Insurance number
     us_ssn             [SSN]
 
-**What is never redacted** (decided 2026-11-17): hostnames and credentials, because
-``p__exfil`` judges whether a destination is external and ``p__secret`` must see secrets.
-A URL's scheme and authority (host, port and any ``user:password@`` userinfo) are left
-exactly as written. Its path, query and fragment go through every detector like any other
-text (AC-G2 decision, backlog 0105b0a): ``?email=a@b.example&card=4111111111111111`` becomes
-``?email=[EMAIL]@b.example&card=[CARD]``; over-redacting a numeric id there is accepted.
+**What this detector never redacts**: hostnames and credentials, because ``p__exfil``
+judges whether a destination is external and credentials are not personal data. Credentials
+in a known format (keys, tokens, private-key blocks, a URL's password) are handled before
+this detector runs, by :mod:`guardrail_engine.deterministic.secret_formats` (M7-01): a block
+at the guard points of ``p__secret``, and ``[SECRET]`` at ``input``. Any other credential is
+left for ``p__secret`` to judge. A URL's scheme and authority (host, port and any
+``user:password@`` userinfo) are left exactly as written by this detector. Its path, query
+and fragment go through every detector like any other text (AC-G2 decision, backlog 0105b0a):
+``?email=a@b.example&card=4111111111111111`` becomes ``?email=[EMAIL]@b.example&card=[CARD]``;
+over-redacting a numeric id there is accepted.
 Outside URLs, ``word:secret@host`` is treated as userinfo too (``mailto:`` excepted).
 
 **The detection rules**, chosen to be conservative, because a false positive destroys text

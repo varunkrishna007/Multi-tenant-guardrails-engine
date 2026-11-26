@@ -69,8 +69,8 @@ use (:attr:`Engine.test_overrides`, a WARNING line when the engine is built, and
 bootstrap publish's class A event):
 
 * ``pii_detector``: another :class:`~guardrail_engine.guard.pii.PiiDetector` in place of the
-  deterministic one. Redaction has no off switch, so it is refused when ``environment`` is
-  ``production``.
+  deterministic one. Redaction has no off switch, so it is accepted **only** when
+  ``environment`` is ``test`` (``staging`` takes production-shaped traffic).
 * ``nonce_source``: where the renderer draws its spotlighting nonces, so a calibration run's
   draws can be reproduced. A known nonce defeats spotlighting (whoever knows it can close a
   section), and ``staging`` takes production-shaped traffic, so it is accepted **only** when
@@ -90,6 +90,7 @@ import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from guardrail_engine.admin import DraftService, InMemoryDraftStore, ScopedDraftStores
@@ -104,7 +105,15 @@ from guardrail_engine.admin.catalog import CatalogAdmin, CatalogService
 from guardrail_engine.admin.content import StoredContentService
 from guardrail_engine.admin.decisions import DecisionsService, LifecycleDerivedKeys
 from guardrail_engine.admin.evidence import EvidenceGate
+from guardrail_engine.admin.floor_records import (
+    ReleaseRecordError,
+    check_against,
+    check_evidence,
+    load,
+)
+from guardrail_engine.admin.floor_records import replay as replay_release
 from guardrail_engine.admin.floors import (
+    FloorRelease,
     FloorService,
     InMemoryPlatformStore,
     LoggingNotifier,
@@ -121,6 +130,7 @@ from guardrail_engine.admin.lifecycle import (
 )
 from guardrail_engine.admin.metrics import MetricsService
 from guardrail_engine.admin.nightly import NightlyResultsService
+from guardrail_engine.admin.provider_health import ProviderHealthService
 from guardrail_engine.admin.publish import PublishService
 from guardrail_engine.admin.repin_service import RepinService
 from guardrail_engine.admin.rollout import LifecycleCandidates, RolloutService
@@ -135,8 +145,9 @@ from guardrail_engine.admin.tool_registry import (
     ToolService,
 )
 from guardrail_engine.admin.tools import DraftTools, EvaluatorUnavailableError
+from guardrail_engine.audit.spill import spill_file_beside
 from guardrail_engine.audit.store import InMemoryDecisionRecords
-from guardrail_engine.audit.term import EffectiveTerm
+from guardrail_engine.audit.term import EffectiveTerm, directory_regulated
 from guardrail_engine.audit.writer import DecisionRecordWriter
 from guardrail_engine.authz.authentication import Authenticator
 from guardrail_engine.authz.authorizer import Authorizer, AuthzAuditSink
@@ -159,6 +170,7 @@ from guardrail_engine.engine.bootstrap import (
     ClassAAuditFileError,
     LoggingAdminAuditSink,
     bundle_diff,
+    decision_spill_at,
 )
 from guardrail_engine.engine.settings import EngineSettings, SettingsError
 from guardrail_engine.escalation import (
@@ -177,7 +189,9 @@ from guardrail_engine.gateway.token_rate import (
 from guardrail_engine.guard.audit import AuditSink
 from guardrail_engine.guard.context import ContextVerifier
 from guardrail_engine.guard.pii import PiiDetector
+from guardrail_engine.guard.refusal import RefusalConfig
 from guardrail_engine.guard.render import NonceSource, new_nonce
+from guardrail_engine.guard.repeat import RepeatConfig
 from guardrail_engine.guard.request import CheckContext
 from guardrail_engine.guard.service import GuardConfig, GuardService, ProjectBackend
 from guardrail_engine.guard.shadow import InMemoryShadowStats
@@ -386,8 +400,12 @@ class Engine:
         publish_bus: PublishBus | None = None,
         approval_service: ApprovalService | None = None,
         tier_service: TierService | None = None,
+        provider_health_service: ProviderHealthService | None = None,
     ) -> None:
         self.settings = settings
+        self.provider_health_service = provider_health_service
+        """``GET`` and ``PUT /v1/platform/provider/degraded`` (M7-11): an operator's hold on
+        the gateways' provider-health breaker. Built when there is a platform store."""
         self.tier_service = tier_service
         """``PUT /v1/tenants/{tid}/guardrails/tier``: a platform operator sets a tenant's tier
         (M5-01). Built when ``build_engine`` is given the directory's write store."""
@@ -594,6 +612,7 @@ class Engine:
             approvals=self.approval_service,
             metrics=self.metrics_service,
             tiers=self.tier_service,
+            provider_health=self.provider_health_service,
         )
 
     @property
@@ -1023,7 +1042,7 @@ async def build_engine(
       :class:`~guardrail_engine.engine.bootstrap.LoggingAdminAuditSink` (``test`` only).
       Passing a sink and setting the file both is refused.
     * ``pii_detector``: **test only.** A PII detector in place of the deterministic one
-      (M1-14), like the model override. Refused when ``environment`` is ``production``.
+      (M1-14), like the model override. Accepted only when ``environment`` is ``test``.
     * ``nonce_source``: **test only.** The renderer's nonce source, for reproducible
       calibration draws. Accepted only when ``environment`` is ``test``.
     Either override is recorded: see the module docstring, "Test-only overrides".
@@ -1113,6 +1132,7 @@ async def build_engine(
             "check can refuse an application role that is a member of the operator role"
         )
     audit_file = settings.class_a_audit.file
+    class_a_ok = False
     if audit_file is not None:
         if admin_audit is not None:
             problems.append(
@@ -1126,6 +1146,24 @@ async def build_engine(
                 problems.append(f"class_a_audit.file: {e}")  # the path and error type only
             else:
                 admin_audit = file_sink
+                class_a_ok = True
+    spill_path = _spill_path(settings)
+    spill_setting = settings.decision_spill.file
+    if spill_path is not None and (spill_setting is not None or class_a_ok):
+        try:  # the decision spill (M7-04) is held to the same checks as the class A file
+            decision_spill_at(spill_path).check()
+        except ClassAAuditFileError as e:
+            problems.append(f"decision_spill.file: {e}")
+    if (
+        spill_path is None
+        and settings.environment in ("production", "staging")
+        and (decision_records is not None or settings.store.kind == "postgres")
+    ):
+        problems.append(
+            "decision_spill.file: required in production and staging when decision records are "
+            "stored (set it, or class_a_audit.file, beside which it is kept): without a spill "
+            "location a regulated tenant's record is dropped when the write-behind queue is full"
+        )
     if (
         authz_audit is not None
         and settings.environment != "test"
@@ -1180,6 +1218,7 @@ async def build_engine(
                 "pattern is scanned for",
                 settings.environment,
             )
+    release_records = _release_records(settings, catalog, problems)
     if problems:
         raise SettingsError(problems)
     assert catalog is not None
@@ -1292,10 +1331,19 @@ async def build_engine(
             decision_records = _postgres_decisions(pg_pool, pg_operator_pool)
         decision_writer: DecisionRecordWriter | None = None
         if decision_records is not None:
+            spill_path = _spill_path(settings)
+            spill = (
+                decision_spill_at(spill_path, max_bytes=settings.decision_spill.max_bytes)
+                if spill_path is not None and hasattr(decision_records, "append_keyed")
+                else None
+            )
             decision_writer = DecisionRecordWriter(
                 decision_records,
                 EffectiveTerm(catalog=catalog, settings=settings.platform, directory=directory),
                 alerts=alerts,
+                spill=spill,
+                is_regulated=directory_regulated(directory),
+                is_ended=getattr(directory, "ended", None),
             )
             audit = decision_writer if audit is None else _BothAudits(audit, decision_writer)
         if stored_content is None:
@@ -1338,6 +1386,15 @@ async def build_engine(
                 # M3-10, M3-07: the project's token-rate and quota settings ride on the
                 # gateway's config.
                 gateway=settings.effective_gateway(),
+                repeat=RepeatConfig(
+                    threshold=settings.guard.repeat_threshold,
+                    window_s=settings.guard.repeat_window_s,
+                    guard_points=frozenset(settings.guard.repeat_guard_points),
+                ),
+                refusal=RefusalConfig(
+                    cap=settings.guard.refusal_escalation_cap,
+                    window_s=settings.guard.refusal_escalation_window_s,
+                ),
             ),
             meter=meter,
             alerts=alerts,
@@ -1378,6 +1435,8 @@ async def build_engine(
         if platform_store is None:
             if built_store_kind == "memory" or (store_given and settings.environment == "test"):
                 platform_store = InMemoryPlatformStore()
+                for release in release_records:  # the simulation's recorded releases (M7-05)
+                    await replay_release(platform_store, release)
             elif built_store_kind == "postgres":
                 platform_store = _postgres_platform(pg_pool)
         if approval_store is None:
@@ -1681,6 +1740,11 @@ async def build_engine(
         publish_service=publisher,
         approval_service=approval_service,
         tier_service=tier_service,
+        provider_health_service=(
+            ProviderHealthService(platform_store, lambda: guard.gateways)
+            if platform_store is not None
+            else None
+        ),
         publish_bus=publish_bus,
     )
     draft_evaluator.track = engine._tracked_work
@@ -1814,10 +1878,10 @@ def _test_overrides(
             problems.append("nonce_source: must be a callable returning a nonce")
     if pii_detector is not None:
         used.append("pii_detector")
-        if environment == "production":
+        if environment != "test":
             problems.append(
-                "pii_detector: a PII detector override is refused when environment is "
-                "'production' (redaction has no off switch)"
+                f"pii_detector: a PII detector override is accepted only when environment is "
+                f"'test', not {environment!r} (redaction has no off switch)"
             )
     return tuple(sorted(used))
 
@@ -1908,6 +1972,16 @@ def _tier_required_packs(
     return required
 
 
+def _spill_path(settings: EngineSettings) -> Path | None:
+    """Where regulated tenants' decision records spill: the setting, else beside the class A
+    audit file, else nowhere (M7-04)."""
+    if settings.decision_spill.file is not None:
+        return settings.decision_spill.file
+    if settings.class_a_audit.file is not None:
+        return spill_file_beside(settings.class_a_audit.file)
+    return None
+
+
 def _build_catalog(settings: EngineSettings, problems: list[str]) -> InMemoryCatalog | None:
     """Read the floor and pack files, appending a problem for each that doesn't load, and
     check the floors against ``min_floor_version`` and the question budgets (R6.1)."""
@@ -1962,7 +2036,7 @@ def _build_catalog(settings: EngineSettings, problems: list[str]) -> InMemoryCat
     if settings.environment in ("production", "staging") and floors:
         # Tool-description screening (M2-03) asks three questions of the newest floor; without
         # them every tool registration would fail closed. Refuse to start rather than discover
-        # that when a tenant adds a tool (R41).
+        # that when a tenant adds a tool.
         newest = max(floors, key=lambda f: f.version)
         have = {r.key for r in newest.rules}
         missing = [k for k in SCREEN_RULES if k not in have]
@@ -2053,6 +2127,17 @@ class _BothAudits:
             self._first.record(verdict)
         finally:
             self._second.record(verdict)
+
+    async def arecord(self, verdict: _AuditedVerdict) -> None:
+        """As :meth:`record`; the second sink may wait to keep a regulated tenant's record."""
+        try:
+            self._first.record(verdict)
+        finally:
+            arecord = getattr(self._second, "arecord", None)
+            if arecord is not None:
+                await arecord(verdict)
+            else:
+                self._second.record(verdict)
 
 
 def _postgres_usage_metrics(pool: Any, operator_pool: Any = None) -> Any:
@@ -2208,6 +2293,43 @@ def _lister_of(directory: Any) -> Any:
     """The directory's tenant listing for the platform's bulk steps, or an empty one for a
     directory that has none (then no bulk step does anything)."""
     return directory if callable(getattr(directory, "tenant_ids", None)) else _NoTenants()
+
+
+def _release_records(
+    settings: EngineSettings, catalog: Any, problems: list[str]
+) -> list[FloorRelease]:
+    """The floor releases the engine starts with (M7-05): the records in
+    ``catalog.release_records`` for floors the catalog holds, in the ``test`` environment only.
+    A production or staging engine reads its release state from the platform tables.
+
+    A record is applied only after its evidence is checked against the report file it names and
+    the current corpus (the check a proposal passes); one that fails stops the start."""
+    if settings.environment != "test" or not isinstance(catalog, InMemoryCatalog):
+        return []
+    found: list[FloorRelease] = []
+    corpus = _corpus_hasher(settings)
+    for i, path in enumerate(settings.catalog.release_records):
+        where = f"catalog.release_records[{i}] ({path})"
+        try:
+            record = load(path)
+            release = record.release
+            if catalog.floor(release.floor_version) is None:
+                continue  # a floor this engine doesn't load: the record has nothing to release
+            try:
+                check_against(release, catalog)
+            except ReleaseRecordError as e:
+                # Closed, not refused: the floor stays unreleased, as an engine with no record.
+                logger.warning("%s: not applied: %s", where, e)
+                continue
+            check_evidence(record, corpus())
+        except ReleaseRecordError as e:
+            problems.append(f"{where}: {e}")
+            continue
+        if any(f.floor_version == release.floor_version for f in found):
+            problems.append(f"{where}: floor@{release.floor_version} is released twice")
+            continue
+        found.append(release)
+    return found
 
 
 def _corpus_hasher(settings: Any) -> Any:

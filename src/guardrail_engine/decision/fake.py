@@ -348,3 +348,42 @@ def _apply_edit(answers: dict[str, Any], questions: Mapping[str, Question], edit
         else:
             answers[key]["score"] = float(len(q.criteria)) if value is None else value
     answers.update(edit.raw_answers)
+
+
+MARKER_BLOCK = "[mix:block]"
+MARKER_ESCALATE = "[mix:escalate]"
+MARKER_FAIL = "[mix:fail]"
+MARKER_REFUSE = "[mix:refuse]"
+_INJECTION_KEY = "p__inj_direct"
+
+
+class MarkedFakeDecisionModel(FakeDecisionModel):
+    """A fake that decides by what the text says, so two processes given the same text decide
+    alike (a test or a load run that compares modes needs that). The text carries a marker:
+    ``[mix:block]`` scores the floor's injection rule over its block line, ``[mix:escalate]`` over
+    its escalate line, ``[mix:fail]`` is an ``unavailable`` failure and ``[mix:refuse]`` a provider
+    safety refusal. Text with no marker is allowed."""
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(responder=self._by_marker, **kwargs)
+
+    @staticmethod
+    def _by_marker(text: str, key: str, question: Question) -> float | None:
+        if key != _INJECTION_KEY:
+            return None
+        if MARKER_BLOCK in text:
+            return 0.95
+        if MARKER_ESCALATE in text:
+            return 0.6
+        return None
+
+    async def decide(self, input: str, questions: Mapping[str, Question]) -> DecisionResult:
+        if MARKER_REFUSE in input:
+            if self.latency_s > 0:
+                await asyncio.sleep(self.latency_s)
+            return SafetyBlocked(reason="safety")
+        if MARKER_FAIL in input:
+            if self.latency_s > 0:
+                await asyncio.sleep(self.latency_s)
+            return Failed(kind=FailureKind.UNAVAILABLE)
+        return await super().decide(input, questions)

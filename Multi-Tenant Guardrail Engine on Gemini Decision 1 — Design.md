@@ -10,7 +10,7 @@ Each tenant configures its guardrails as a versioned policy bundle through an Ad
 
 - Tenants configure rules, thresholds, guard points and fail mode themselves, with no code deploy.
 - A platform floor (prompt injection, cross-tenant leakage, secrets) that no tenant can disable or loosen.
-- Target p95 of 300 ms or less per guard point, so all five guard points stay affordable.
+- Original target: p95 of 300 ms or less per guard point. Measured p95 was 400 ms for a single sequential client, and up to about 1,100 ms under load, so the budget is now a 3 s cap per check (4 s at `input`), with one retry (U7.1). Meeting the 300 ms target remains a goal, not a property of the current build.
 - Cloud-agnostic runtime: stateless services on any Kubernetes, with the model behind a `DecisionModel` port.
 - Per-tenant audit trail, metrics and cost attribution.
 
@@ -312,6 +312,10 @@ def check(ctx, guard_point, content):
         input=render_input(ctx.tenant, guard_point, det.content, ctx),
         questions=compile_questions(bundle, guard_point))
     if res.provider_safety_block:                         # HTTP 400 with code "safety"
+        if may_escalate_refusal(bundle, guard_point):
+            # an enforce rule here can only escalate, the
+            # route exists and the cap isn't spent (M7-08)
+            return audit(ctx, bundle, guard_point, Verdict.escalate("provider_safety"))
         return audit(ctx, bundle, guard_point, Verdict.block("provider_safety"))
     if res.failed:
         return audit(ctx, bundle, guard_point, Verdict.fail_mode(bundle, guard_point))
@@ -319,7 +323,7 @@ def check(ctx, guard_point, content):
     return audit(ctx, bundle, guard_point, Verdict(decision, fired, res.answers))
 ```
 
-`det.content` is the content after deterministic redaction, so PII never reaches the model. Compiled question sets are cached per `(tenant, version, guard_point)`, so compiling costs nothing on the hot path.
+`det.content` is the content after deterministic redaction. Redaction covers eight formats (email, phone, card, IBAN, UK sort code, UK account number, UK NINO, US SSN); other personal data, such as names, addresses and health details, does reach the model. Compiled question sets are cached per `(tenant, version, guard_point)`, so compiling costs nothing on the hot path.
 
 ## Multi-tenancy
 
@@ -374,7 +378,7 @@ Every failure path ends in a defined decision: `block`, `allow` or the tenant's 
 | --- | --- | --- |
 | Decisions API timeout | Client deadline (default 500 ms) | One retry with jitter if budget remains, then the guard point's fail mode |
 | 429 rate limited | HTTP status | Shed by priority (`tool_result` first), then fail mode; alert on sustained 429s |
-| 400 with `"code": "safety"` | Error body | Treated as `block` with reason `provider_safety`; logged as a decision, not an error |
+| 400 with `"code": "safety"` | Error body | Treated as `block` with reason `provider_safety`; logged as a decision, not an error. Where the guard point has an enforce rule that may only escalate (healthcare, responsible AI), and the tenant's escalation route exists and its per-guard-point cap isn't spent, it is an `escalate` with the same reason instead, so a person sees what the provider would not judge. The content is withheld either way (M7-08) |
 | 400 limit exceeded | Error body names the rule | Config bug (the validator should prevent it): fail mode plus a page to the platform team |
 | Policy store unavailable | Cache miss with store error | Serve the last-known-good version from local cache |
 | Bad publish (block rate spikes) | Block rate vs the 7-day baseline per tenant | Alert the tenant admin; one-click rollback |

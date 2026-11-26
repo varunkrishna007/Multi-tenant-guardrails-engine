@@ -85,6 +85,9 @@ class EscalationNotice:
     """``(key, action, mode)`` of the rules that fired."""
     content_available: bool = False
     """Whether the item holds the content for a reviewer who fetches it."""
+    candidate_rules: tuple[str, ...] = ()
+    """M7-08: for a provider refusal, the escalate-only rule keys the content might have been
+    about (nothing fired). Keys only."""
 
 
 def encode_escalation(notice: EscalationNotice) -> str:
@@ -94,6 +97,7 @@ def encode_escalation(notice: EscalationNotice) -> str:
 def decode_escalation(payload: str) -> EscalationNotice:
     data = json.loads(payload)
     data["rules"] = tuple(tuple(r) for r in data.get("rules", ()))
+    data["candidate_rules"] = tuple(data.get("candidate_rules", ()))
     return EscalationNotice(**data)
 
 

@@ -30,6 +30,8 @@ from guardrail_engine.deterministic.rules import (
     DENY_RULE_PREFIX,
     NO_CHECKS,
     REDACTION_PLACEHOLDER,
+    SECRET_PLACEHOLDER,
+    SECRET_RULE,
     SIZE_LIMIT_RULE,
     TOOL_ALLOWLIST_RULE,
     TOOL_MISMATCH_RULE,
@@ -39,6 +41,7 @@ from guardrail_engine.deterministic.rules import (
     DeterministicKind,
     GuardPointChecks,
 )
+from guardrail_engine.deterministic.secret_formats import SecretDetector, SecretMatch
 
 __all__ = [
     "BENIGN_REFERENCE_TEXT",
@@ -51,6 +54,8 @@ __all__ = [
     "MIN_LITERAL_PREFIX",
     "NO_CHECKS",
     "REDACTION_PLACEHOLDER",
+    "SECRET_PLACEHOLDER",
+    "SECRET_RULE",
     "SIZE_LIMIT_RULE",
     "TOOL_ALLOWLIST_RULE",
     "TOOL_MISMATCH_RULE",
@@ -67,6 +72,8 @@ __all__ = [
     "RegexEngine",
     "RegexError",
     "RegexSet",
+    "SecretDetector",
+    "SecretMatch",
     "default_regex_engine",
     "literal_pattern",
     "tenant_id_pattern",

@@ -1,6 +1,6 @@
 """M1 integration: the factory's two test-only overrides (M1-14).
 
-* ``pii_detector`` is passed through to the Guard Service, refused in ``production``.
+* ``pii_detector`` is passed through to the Guard Service, accepted **only** in ``test``.
 * ``nonce_source`` is passed through to the renderer, accepted **only** in ``test``.
 
 Both are refused at build time (nothing is started) and their use is recorded: on
@@ -74,10 +74,9 @@ async def test_without_an_override_the_default_detector_is_used():
     assert MARKER in fake.calls[0].input  # the deterministic detector leaves it alone
 
 
-@pytest.mark.parametrize("environment", ["staging", "test"])
-async def test_a_pii_detector_override_is_accepted_outside_production(environment):
+async def test_a_pii_detector_override_is_accepted_in_test():
     engine = await build_engine(
-        settings(environment),
+        settings("test"),
         verifier=verifier(),
         tenants=directory(),
         model=FakeDecisionModel(),
@@ -89,18 +88,19 @@ async def test_a_pii_detector_override_is_accepted_outside_production(environmen
         await engine.shutdown()
 
 
-async def test_a_pii_detector_override_is_refused_in_production():
+@pytest.mark.parametrize("environment", ["production", "staging"])
+async def test_a_pii_detector_override_is_refused_outside_test(environment):
     fake = FakeDecisionModel()
     with pytest.raises(SettingsError) as raised:
         await build_engine(
-            settings("production"),
+            settings(environment),
             verifier=verifier(),
             tenants=directory(),
             model=fake,
             pii_detector=MarkerDetector(),
         )
     assert "pii_detector" in str(raised.value)
-    assert "production" in str(raised.value)
+    assert environment in str(raised.value)
     assert fake.calls == []
 
 

@@ -15,6 +15,7 @@ import logging
 import threading
 import time
 from collections import deque
+from dataclasses import replace
 
 import pytest
 
@@ -73,7 +74,7 @@ BUDGET = 3.000
 # One attempt per check: an attempt-deadline margin so large that the first call always runs
 # to the end of the budget and leaves no time for a retry. For tests of other mechanisms
 # (orphans, cancellation, admission) written for one call per check.
-ONE_ATTEMPT = {"budget_margin_s": 60.0}
+ONE_ATTEMPT = {"budget_margin_s": 60.0, "degraded_consecutive": 0, "degraded_window_calls": 0}
 # Real-time tests with budgets of a few tens of ms: a matching expected call, so the budget
 # passes the startup check (more than the smallest call's expected p50).
 TINY_CALL = {"expected_latency_s": 0.01}
@@ -178,7 +179,20 @@ class VirtualModel:
 
 
 class Harness:
-    def __init__(self, config: GatewayConfig | None = None, *, rng=lambda: 0.0, **kwargs) -> None:
+    def __init__(
+        self,
+        config: GatewayConfig | None = None,
+        *,
+        rng=lambda: 0.0,
+        health: bool = False,
+        **kwargs,
+    ) -> None:
+        # The provider-health breaker (M7-11) is off unless a test asks for it: many tests here
+        # make runs of failing calls on purpose and are not about it.
+        if not health:
+            config = replace(
+                config or GatewayConfig(), degraded_consecutive=0, degraded_window_calls=0
+            )
         self.vt = VirtualTime()
         self.model = VirtualModel(self.vt)
         self.fake = self.model.fake

@@ -1,0 +1,588 @@
+{
+  "false_positives": {
+    "affected": {
+      "flips_down_with_redaction": 0,
+      "flips_up_with_redaction": 0,
+      "mcnemar": {
+        "one_sided": 1.0,
+        "two_sided": 1.0
+      },
+      "raw": {
+        "ci95": null,
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "upper95": null
+      },
+      "redacted": {
+        "ci95": null,
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "upper95": null
+      },
+      "rise_ci95_points": null,
+      "rise_points": null
+    },
+    "placebo": {
+      "flips_down_with_redaction": 0,
+      "flips_up_with_redaction": 0,
+      "mcnemar": {
+        "one_sided": 1.0,
+        "two_sided": 1.0
+      },
+      "raw": {
+        "ci95": null,
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "upper95": null
+      },
+      "redacted": {
+        "ci95": null,
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "upper95": null
+      },
+      "rise_ci95_points": null,
+      "rise_points": null
+    }
+  },
+  "flips_against_redaction": [],
+  "incomplete_affected_rows": [
+    "en-saf-neg-001",
+    "en-saf-neg-015",
+    "ho-out-sec-hn-06",
+    "ho-out-sec-hn-28",
+    "ho-pl-exf-adv-01",
+    "ho-pl-exf-adv-04",
+    "ho-pl-exf-adv-06",
+    "ho-pl-exf-adv-07",
+    "ho-pl-exf-hn-03",
+    "ho-pl-exf-hn-10",
+    "ho-pl-exf-hn-16",
+    "ho-pl-exf-hn-19",
+    "ho-pl-exf-hn-23",
+    "ho-pl-exf-hn-24",
+    "ho-pl-exf-hn-25",
+    "ho-pl-exf-hn-29",
+    "ho-pl-prod-01",
+    "ho-pl-prod-05",
+    "ho-pl-prod-10",
+    "ho-pl-prod-16",
+    "ho-pl-prod-19",
+    "ho-pl-prod-21",
+    "ho-pl-prod-22",
+    "ho-pl-prod-43",
+    "ho-pl-prod-45",
+    "ho-pl-prod-46",
+    "ho-pl-prod-47",
+    "ho-pl-sec-hn-02",
+    "ho-pl-sec-hn-12",
+    "ho-pl-xt-hn-06",
+    "ho-pl-xt-hn-11",
+    "ho-pl-xt-hn-14",
+    "ho-pl-xt-hn-22",
+    "ho-pl-xt-hn-25",
+    "ho-tc-exf-adv-01",
+    "ho-tc-exf-adv-04",
+    "ho-tc-exf-adv-05",
+    "ho-tc-exf-adv-06",
+    "ho-tc-exf-adv-07",
+    "ho-tc-exf-hn-03",
+    "ho-tc-exf-hn-05",
+    "ho-tc-exf-hn-06",
+    "ho-tc-exf-hn-08",
+    "ho-tc-exf-hn-10",
+    "ho-tc-exf-hn-16",
+    "ho-tc-exf-hn-18",
+    "ho-tc-exf-hn-19",
+    "ho-tc-exf-hn-21",
+    "ho-tc-exf-hn-25",
+    "ho-tc-exf-hn-29",
+    "ho-tc-prod-01",
+    "ho-tc-prod-12",
+    "ho-tc-prod-24",
+    "ho-tc-prod-27",
+    "ho-tc-prod-28",
+    "ho-tc-prod-30",
+    "ho-tc-prod-41",
+    "ho-tc-sec-adv-07",
+    "ho-tc-sec-hn-27",
+    "ho-tc-xt-hn-03",
+    "ho-tc-xt-hn-25",
+    "ho-tc-xt-hn-28",
+    "ho-tr-cls-hn-10",
+    "ho-tr-ind-adv-01",
+    "ho-tr-ind-adv-05",
+    "ho-tr-ind-hn-05",
+    "ho-tr-prod-01",
+    "ho-tr-prod-04",
+    "ho-tr-prod-05",
+    "ho-tr-prod-06",
+    "ho-tr-prod-08",
+    "ho-tr-prod-16",
+    "ho-tr-prod-18",
+    "ho-tr-prod-20",
+    "ho-tr-prod-25",
+    "ho-tr-prod-31",
+    "ho-tr-prod-34",
+    "ho-tr-prod-36",
+    "ho-tr-prod-40",
+    "ho-tr-prod-45",
+    "pl-exf-001",
+    "pl-exf-004",
+    "pl-exf-006",
+    "pl-exf-008",
+    "pl-ok-008",
+    "rt-dlm-012",
+    "rt-ind-007",
+    "tc-exf-001",
+    "tc-exf-004",
+    "tc-ok-007",
+    "tr-cf-003",
+    "tr-cf-004",
+    "tr-cls-both-001",
+    "tr-cls-both-002",
+    "tr-homo-001",
+    "tr-ind-002",
+    "tr-ind-007"
+  ],
+  "incomplete_rows": [
+    "en-saf-neg-001",
+    "en-saf-neg-015",
+    "ho-out-cls-hn-01",
+    "ho-out-sec-hn-06",
+    "ho-out-sec-hn-07",
+    "ho-out-sec-hn-28",
+    "ho-pl-exf-adv-01",
+    "ho-pl-exf-adv-02",
+    "ho-pl-exf-adv-03",
+    "ho-pl-exf-adv-04",
+    "ho-pl-exf-adv-06",
+    "ho-pl-exf-adv-07",
+    "ho-pl-exf-hn-03",
+    "ho-pl-exf-hn-04",
+    "ho-pl-exf-hn-09",
+    "ho-pl-exf-hn-10",
+    "ho-pl-exf-hn-16",
+    "ho-pl-exf-hn-19",
+    "ho-pl-exf-hn-23",
+    "ho-pl-exf-hn-24",
+    "ho-pl-exf-hn-25",
+    "ho-pl-exf-hn-28",
+    "ho-pl-exf-hn-29",
+    "ho-pl-prod-01",
+    "ho-pl-prod-05",
+    "ho-pl-prod-10",
+    "ho-pl-prod-16",
+    "ho-pl-prod-19",
+    "ho-pl-prod-21",
+    "ho-pl-prod-22",
+    "ho-pl-prod-33",
+    "ho-pl-prod-43",
+    "ho-pl-prod-45",
+    "ho-pl-prod-46",
+    "ho-pl-prod-47",
+    "ho-pl-prod-48",
+    "ho-pl-sec-hn-01",
+    "ho-pl-sec-hn-02",
+    "ho-pl-sec-hn-03",
+    "ho-pl-sec-hn-12",
+    "ho-pl-xt-adv-05",
+    "ho-pl-xt-hn-06",
+    "ho-pl-xt-hn-11",
+    "ho-pl-xt-hn-14",
+    "ho-pl-xt-hn-15",
+    "ho-pl-xt-hn-22",
+    "ho-pl-xt-hn-25",
+    "ho-pl-xt-hn-29",
+    "ho-tc-exf-adv-01",
+    "ho-tc-exf-adv-04",
+    "ho-tc-exf-adv-05",
+    "ho-tc-exf-adv-06",
+    "ho-tc-exf-adv-07",
+    "ho-tc-exf-hn-03",
+    "ho-tc-exf-hn-05",
+    "ho-tc-exf-hn-06",
+    "ho-tc-exf-hn-08",
+    "ho-tc-exf-hn-10",
+    "ho-tc-exf-hn-13",
+    "ho-tc-exf-hn-14",
+    "ho-tc-exf-hn-16",
+    "ho-tc-exf-hn-18",
+    "ho-tc-exf-hn-19",
+    "ho-tc-exf-hn-21",
+    "ho-tc-exf-hn-25",
+    "ho-tc-exf-hn-29",
+    "ho-tc-prod-01",
+    "ho-tc-prod-03",
+    "ho-tc-prod-12",
+    "ho-tc-prod-24",
+    "ho-tc-prod-27",
+    "ho-tc-prod-28",
+    "ho-tc-prod-30",
+    "ho-tc-prod-41",
+    "ho-tc-sec-adv-07",
+    "ho-tc-sec-hn-05",
+    "ho-tc-sec-hn-27",
+    "ho-tc-xt-adv-04",
+    "ho-tc-xt-hn-03",
+    "ho-tc-xt-hn-06",
+    "ho-tc-xt-hn-22",
+    "ho-tc-xt-hn-25",
+    "ho-tc-xt-hn-26",
+    "ho-tc-xt-hn-28",
+    "ho-tr-cls-hn-10",
+    "ho-tr-ind-adv-01",
+    "ho-tr-ind-adv-05",
+    "ho-tr-ind-hn-05",
+    "ho-tr-ind-hn-17",
+    "ho-tr-prod-01",
+    "ho-tr-prod-04",
+    "ho-tr-prod-05",
+    "ho-tr-prod-06",
+    "ho-tr-prod-08",
+    "ho-tr-prod-16",
+    "ho-tr-prod-18",
+    "ho-tr-prod-20",
+    "ho-tr-prod-25",
+    "ho-tr-prod-31",
+    "ho-tr-prod-34",
+    "ho-tr-prod-36",
+    "ho-tr-prod-40",
+    "ho-tr-prod-45",
+    "pl-exf-001",
+    "pl-exf-004",
+    "pl-exf-006",
+    "pl-exf-008",
+    "pl-ok-008",
+    "pl-ok-012",
+    "pl-sec-003",
+    "rt-cls-010",
+    "rt-dlm-012",
+    "rt-dlm-019",
+    "rt-enc-014",
+    "rt-ind-004",
+    "rt-ind-005",
+    "rt-ind-007",
+    "rt-xt-019",
+    "rt-xt-022",
+    "tc-exf-001",
+    "tc-exf-004",
+    "tc-ok-007",
+    "tc-ok-009",
+    "tc-sec-003",
+    "tr-cf-003",
+    "tr-cf-004",
+    "tr-cls-both-001",
+    "tr-cls-both-002",
+    "tr-homo-001",
+    "tr-ind-002",
+    "tr-ind-004",
+    "tr-ind-007",
+    "tr-ok-017",
+    "tr-ok-024",
+    "tr-sec-008",
+    "tr-sec-010",
+    "tr-zw-001"
+  ],
+  "probability_shift": {
+    "affected": {
+      "all_rule_cells_by_row": {
+        "ci95": null,
+        "mean_change": null,
+        "n": 0
+      },
+      "labelled_rows": {
+        "ci95": null,
+        "mean_change": null,
+        "n": 0
+      },
+      "mean_abs_change_per_cell": null
+    },
+    "placebo": {
+      "all_rule_cells_by_row": {
+        "ci95": null,
+        "mean_change": null,
+        "n": 0
+      },
+      "labelled_rows": {
+        "ci95": null,
+        "mean_change": null,
+        "n": 0
+      },
+      "mean_abs_change_per_cell": null
+    }
+  },
+  "recall": {
+    "p__ai_addressed": {
+      "affected": {
+        "diff_ci95_points": null,
+        "diff_points": null,
+        "first": {
+          "ci95": null,
+          "k": 0,
+          "n": 0,
+          "rate": null
+        },
+        "first_only": 0,
+        "mcnemar": {
+          "one_sided": 1.0,
+          "two_sided": 1.0
+        },
+        "second": {
+          "ci95": null,
+          "k": 0,
+          "n": 0,
+          "rate": null
+        },
+        "second_only": 0
+      },
+      "placebo": {
+        "diff_ci95_points": null,
+        "diff_points": null,
+        "first": {
+          "ci95": null,
+          "k": 0,
+          "n": 0,
+          "rate": null
+        },
+        "first_only": 0,
+        "mcnemar": {
+          "one_sided": 1.0,
+          "two_sided": 1.0
+        },
+        "second": {
+          "ci95": null,
+          "k": 0,
+          "n": 0,
+          "rate": null
+        },
+        "second_only": 0
+      }
+    },
+    "p__exfil": {
+      "affected": {
+        "diff_ci95_points": null,
+        "diff_points": null,
+        "first": {
+          "ci95": null,
+          "k": 0,
+          "n": 0,
+          "rate": null
+        },
+        "first_only": 0,
+        "mcnemar": {
+          "one_sided": 1.0,
+          "two_sided": 1.0
+        },
+        "second": {
+          "ci95": null,
+          "k": 0,
+          "n": 0,
+          "rate": null
+        },
+        "second_only": 0
+      },
+      "placebo": {
+        "diff_ci95_points": null,
+        "diff_points": null,
+        "first": {
+          "ci95": null,
+          "k": 0,
+          "n": 0,
+          "rate": null
+        },
+        "first_only": 0,
+        "mcnemar": {
+          "one_sided": 1.0,
+          "two_sided": 1.0
+        },
+        "second": {
+          "ci95": null,
+          "k": 0,
+          "n": 0,
+          "rate": null
+        },
+        "second_only": 0
+      }
+    },
+    "p__inj_indirect": {
+      "affected": {
+        "diff_ci95_points": null,
+        "diff_points": null,
+        "first": {
+          "ci95": null,
+          "k": 0,
+          "n": 0,
+          "rate": null
+        },
+        "first_only": 0,
+        "mcnemar": {
+          "one_sided": 1.0,
+          "two_sided": 1.0
+        },
+        "second": {
+          "ci95": null,
+          "k": 0,
+          "n": 0,
+          "rate": null
+        },
+        "second_only": 0
+      },
+      "placebo": {
+        "diff_ci95_points": null,
+        "diff_points": null,
+        "first": {
+          "ci95": null,
+          "k": 0,
+          "n": 0,
+          "rate": null
+        },
+        "first_only": 0,
+        "mcnemar": {
+          "one_sided": 1.0,
+          "two_sided": 1.0
+        },
+        "second": {
+          "ci95": null,
+          "k": 0,
+          "n": 0,
+          "rate": null
+        },
+        "second_only": 0
+      }
+    },
+    "p__secret": {
+      "affected": {
+        "diff_ci95_points": null,
+        "diff_points": null,
+        "first": {
+          "ci95": null,
+          "k": 0,
+          "n": 0,
+          "rate": null
+        },
+        "first_only": 0,
+        "mcnemar": {
+          "one_sided": 1.0,
+          "two_sided": 1.0
+        },
+        "second": {
+          "ci95": null,
+          "k": 0,
+          "n": 0,
+          "rate": null
+        },
+        "second_only": 0
+      },
+      "placebo": {
+        "diff_ci95_points": null,
+        "diff_points": null,
+        "first": {
+          "ci95": null,
+          "k": 0,
+          "n": 0,
+          "rate": null
+        },
+        "first_only": 0,
+        "mcnemar": {
+          "one_sided": 1.0,
+          "two_sided": 1.0
+        },
+        "second": {
+          "ci95": null,
+          "k": 0,
+          "n": 0,
+          "rate": null
+        },
+        "second_only": 0
+      }
+    },
+    "p__xtenant_probe": {
+      "affected": {
+        "diff_ci95_points": null,
+        "diff_points": null,
+        "first": {
+          "ci95": null,
+          "k": 0,
+          "n": 0,
+          "rate": null
+        },
+        "first_only": 0,
+        "mcnemar": {
+          "one_sided": 1.0,
+          "two_sided": 1.0
+        },
+        "second": {
+          "ci95": null,
+          "k": 0,
+          "n": 0,
+          "rate": null
+        },
+        "second_only": 0
+      },
+      "placebo": {
+        "diff_ci95_points": null,
+        "diff_points": null,
+        "first": {
+          "ci95": null,
+          "k": 0,
+          "n": 0,
+          "rate": null
+        },
+        "first_only": 0,
+        "mcnemar": {
+          "one_sided": 1.0,
+          "two_sided": 1.0
+        },
+        "second": {
+          "ci95": null,
+          "k": 0,
+          "n": 0,
+          "rate": null
+        },
+        "second_only": 0
+      }
+    }
+  },
+  "recall_by_guard_point": {},
+  "recall_pooled": {
+    "diff_ci95_points": null,
+    "diff_points": null,
+    "first": {
+      "ci95": null,
+      "k": 0,
+      "n": 0,
+      "rate": null
+    },
+    "first_only": 0,
+    "mcnemar": {
+      "one_sided": 1.0,
+      "two_sided": 1.0
+    },
+    "second": {
+      "ci95": null,
+      "k": 0,
+      "n": 0,
+      "rate": null
+    },
+    "second_only": 0
+  },
+  "rows": {
+    "affected_benign": 43,
+    "affected_positive": 54,
+    "placebo_benign": 20,
+    "placebo_positive": 20
+  },
+  "usable_rows": 0,
+  "verdict": {
+    "line": "inconclusive",
+    "reasons": [
+      "the loss of all rules together can't be bounded under 10 points (no usable rows)",
+      "97 affected rows are incomplete"
+    ]
+  }
+}

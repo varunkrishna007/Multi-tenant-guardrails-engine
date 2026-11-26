@@ -1,0 +1,15 @@
+{
+  "rows": 137,
+  "checks": 822,
+  "model_checks": 822,
+  "estimated_input_tokens": 1556874,
+  "pacing": "each check waits until the limiter would admit its own estimate",
+  "min_interval_s": 1.5,
+  "interval_s": 2.019,
+  "estimated_minutes": 27.7,
+  "bucket_tokens": 5230,
+  "checks_that_wait": 128,
+  "longest_wait_s": 9.5,
+  "rows_larger_than_the_bucket": 18,
+  "largest_estimate": 14176
+}

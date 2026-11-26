@@ -43,10 +43,11 @@ from guardrail_engine.guard.verdict import (
 )
 from guardrail_engine.policy.catalog import STANDARD_RETENTION
 
-AUDIT_RECORD_SCHEMA_VERSION = 6
+AUDIT_RECORD_SCHEMA_VERSION = 7
 """2: M1-14's ``redaction`` and ``pii_redacted`` and M1-15's ``in_flight_at_start``,
 ``capacity_limited`` and ``retry_after_ms``. 3: M3-01's ``deterministic``. 4: M3-03's
-``model_skipped``. 5: M3-04's ``chunks``. 6: M4-10's ``max_action`` on each rule's evaluation."""
+``model_skipped``. 5: M3-04's ``chunks``. 6: M4-10's ``max_action`` on each rule's evaluation.
+7: M7-11's ``degraded``."""
 
 FALLBACK_RETENTION_DAYS = STANDARD_RETENTION.records_max_days
 """Class B retention for a record whose verdict doesn't say (a verdict built outside the
@@ -143,9 +144,9 @@ class AuditRecord(_Frozen):
     contract_violations: tuple[ContractViolation, ...]
     deterministic: tuple[DeterministicHit, ...] = ()
     """M3-01: the deterministic rules that fired, by id (``deny__<id>``, ``tool_allowlist``,
-    ``tool_mismatch``, ``tool_schema``,
-    ``xtenant_identifier``, ``size_limit``) with their action and match count. Never the
-    matched text. Defaulted so records written earlier still load."""
+    ``tool_mismatch``, ``tool_schema``, ``xtenant_identifier``, ``size_limit``, ``p__secret``)
+    with their action and match count. Never the matched text. Defaulted so records written
+    earlier still load."""
 
     model_called: bool
     """The engine took the model path (handed the check to the decision gateway)."""
@@ -176,6 +177,10 @@ class AuditRecord(_Frozen):
     failure_reason: str | None
     """A structured code (provider reason, gateway refusal, or provider refusal code for
     ``provider_safety``), never free text."""
+    degraded: bool = False
+    """M7-11: the check failed because the provider is degraded (the gateway's provider-health
+    breaker refused the call at once, or it was the probe and failed). Defaulted so records
+    written earlier still load."""
     capacity_limited: bool
     """R8: the gateway refused the decision call for lack of capacity (``admission_wait``,
     ``admission_queue_full``, ``orphan_cap``), never a provider failure. The live gate's
@@ -250,6 +255,7 @@ class AuditRecord(_Frozen):
             model_latency_ms=verdict.model_latency_ms,
             failure_kind=verdict.failure_kind,
             failure_reason=verdict.failure_reason,
+            degraded=verdict.degraded,
             capacity_limited=verdict.capacity_limited,
             retry_after_ms=verdict.retry_after_ms,
             latency_ms=verdict.latency_ms,

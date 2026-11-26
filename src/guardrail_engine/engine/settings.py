@@ -61,9 +61,14 @@ Section                        What it holds, and where each default is defined
                                ``token_rate`` (default: the ``token_rate`` section's, with the
                                label as the project id). The shared pool is the engine's own
                                ``GEMINI_API_KEY`` project. None configured by default.
-``guard``                      Guard Service settings: ``pointer_ttl_s`` and
-                               ``store_timeout_s``. Defaults are ``GuardConfig``'s, which come
-                               from ``guard/policy_cache.py``.
+``guard``                      Guard Service settings: ``pointer_ttl_s``, ``store_timeout_s``
+                               and, for repeat-attempt counting (M7-03), ``repeat_threshold``
+                               (blocks of the same content in the window after which it is
+                               refused without a model call; 0 is off) and ``repeat_window_s``;
+                               and, for provider refusals sent to a person (M7-08),
+                               ``refusal_escalation_cap`` (default 20; 0 is off) and
+                               ``refusal_escalation_window_s`` (default 900), both provisional.
+                               Defaults are ``GuardConfig``'s and ``RepeatConfig``'s.
 ``gemini``                     The Gemini adapter: ``paid_tier`` (M1-03), ``model`` (a model
                                id, :data:`MODEL_ID_PATTERN`), ``base_url`` (``https``, no
                                user information), ``transport_timeout_s``,
@@ -81,6 +86,10 @@ Section                        What it holds, and where each default is defined
 ``class_a_audit``              Where ``Engine.bootstrap_publish()`` writes its class A events:
                                ``file``, an append-only file flushed to disk (fsync) before
                                activation. No default (the JSON log line, test only).
+``decision_spill``             Where regulated tenants' decision records go when the writer's
+                               queue is full (M7-04): ``file`` (default: beside
+                               ``class_a_audit.file``) and ``max_bytes`` (default 256 MiB).
+                               Required in production and staging when records go to a store.
 ``environment``                ``production`` (the default), ``staging`` (the dogfood) or
                                ``test`` (tests and the demo). ``Engine.bootstrap_publish()``
                                is refused in ``production``, and in ``staging`` needs a
@@ -114,7 +123,14 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Annotated, Any, Literal, get_args
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    ValidationError,
+    field_validator,
+)
 
 from guardrail_engine.decision.adapters.gemini import GeminiConfig
 from guardrail_engine.decision.limits import MAX_QUESTIONS
@@ -125,6 +141,8 @@ from guardrail_engine.gateway.tenant_quota import (
     allowance_problems,
 )
 from guardrail_engine.gateway.token_rate import TokenRateConfig
+from guardrail_engine.guard.refusal import RefusalConfig
+from guardrail_engine.guard.repeat import RepeatConfig
 from guardrail_engine.guard.service import GuardConfig
 from guardrail_engine.guard.signed_context import (
     AUDIENCE as SIGNED_CONTEXT_AUDIENCE,
@@ -148,6 +166,11 @@ a dedicated project must name another."""
 DEFAULT_FLOOR_FILE = Path("floor/rules.json")
 DEFAULT_TEMPLATE_FILE = Path("templates/within_tenant_records.json")
 """The platform floor (M1-08), relative to the working directory."""
+RELEASE_RECORD_FILE = Path("floor/releases/floor-2.release.json")
+"""The record of floor@2's release (M7-05): see :class:`CatalogSettings.release_records`."""
+NEXT_FLOOR_FILE = Path("floor/rules.v2.json")
+"""floor@2 (M7-05), the floor the held-out validation measured. Loaded beside floor@1 and not
+extendable until the platform releases it, so it changes nothing for any tenant until then."""
 DEFAULT_DRAIN_TIMEOUT_S = 5.0
 """How long shutdown waits for in-flight checks. Validated to be at least the largest check
 budget plus the cancellation grace plus the policy lookups before the model call:
@@ -215,6 +238,31 @@ class GuardSettings(_Section):
     60 s: PF-13 bounds how long a rollback may take to reach the cache."""
     store_timeout_s: float = Field(default=_default(GuardConfig, "store_timeout_s"), gt=0)
     """Upper bound on each policy store or tenant directory call."""
+    repeat_threshold: int = Field(default=_default(RepeatConfig, "threshold"), ge=0, le=1000)
+    """M7-03: how many times the same content may be blocked within ``repeat_window_s`` before
+    a further submission of it is refused without a model call. 0 turns it off."""
+    repeat_window_s: float = Field(default=_default(RepeatConfig, "window_s"), gt=0, le=86_400)
+    """M7-03: how long a block of some content keeps counting."""
+    refusal_escalation_cap: int = Field(default=RefusalConfig().cap, ge=0, le=100_000)
+    """M7-08: how many provider refusals one tenant may send to a person at one guard point
+    within ``refusal_escalation_window_s``; past it a refusal is a block, as before, and one alert
+    is raised per tenant per window. 0 makes every refusal a block. **Provisional**: not
+    calibrated against real traffic."""
+    refusal_escalation_window_s: float = Field(default=RefusalConfig().window_s, gt=0, le=86_400)
+    """M7-08: the window of ``refusal_escalation_cap``. Provisional."""
+    repeat_guard_points: tuple[str, ...] = Field(
+        default=tuple(sorted(_default(RepeatConfig, "guard_points"))), min_length=1
+    )
+    """M7-03: the guard points where repeated content is refused. ``input`` only by default
+    (where a sender resubmits); at the others the content comes from the agent or its tools."""
+
+    @field_validator("repeat_guard_points")
+    @classmethod
+    def _known_guard_points(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        unknown = sorted(set(value) - set(GUARD_POINTS))
+        if unknown:
+            raise ValueError(f"unknown guard points {unknown}")
+        return value
 
 
 class GeminiSettings(_Section):
@@ -251,9 +299,22 @@ class StoreSettings(_Section):
 
 
 class CatalogSettings(_Section):
-    floor_files: tuple[Path, ...] = (DEFAULT_FLOOR_FILE,)
+    floor_files: tuple[Path, ...] = (DEFAULT_FLOOR_FILE, NEXT_FLOOR_FILE)
     """Platform floor files in the flat ``floor/rules.json`` format (M1-08), one per floor
-    version. Relative paths are resolved against the working directory."""
+    version: floor@1 and floor@2 (M7-05). floor@1, the lowest, is the baseline every tenant may
+    extend; floor@2 is extendable once the platform has released it. Relative paths are resolved
+    against the working directory."""
+    release_records: tuple[Path, ...] = (RELEASE_RECORD_FILE,)
+    """Records of floor releases (M7-05, ``admin/floor_records.py``), one JSON file per release.
+    An engine in the ``test`` environment that builds its own in-memory platform store replays
+    them into it at start, so the floors they name are released: with the default, floor@2 is the
+    released floor a new tenant starts on. A record whose floor isn't in ``floor_files`` is
+    skipped, and so is one about a floor whose content has changed since it was released (the
+    floor stays unreleased, and the engine logs it); one that is unreadable or malformed stops
+    the start. A record is trusted only after its evidence is checked at start against the report
+    file it names and the current ``redteam_corpus``; one that doesn't match stops the start. A
+    production or staging engine reads its release state from the platform tables and ignores
+    them. Empty: nothing is released at start but the baseline."""
     pack_files: tuple[Path, ...] = ()
     """Domain pack source documents (pack schema version 1)."""
     redteam_corpus: Path = Path("redteam/corpus.jsonl")
@@ -294,6 +355,23 @@ class ClassAAuditSettings(_Section):
     ``staging`` requires. Checked at startup: the engine refuses to start if it can't be
     opened for append. Unset: the events go to a JSON log line, acceptable in ``test``
     only."""
+
+
+class DecisionSpillSettings(_Section):
+    """Where a regulated tenant's decision records go when the write-behind queue is full
+    (M7-04, :mod:`guardrail_engine.audit.spill`)."""
+
+    file: Path | None = None
+    """The spill file. Unset: ``decision_records.spill.jsonl`` beside ``class_a_audit.file``, when
+    that is set. It is held to the class A file's checks (a directory only the engine's user can
+    write, no symbolic link, mode 0600) and checked at startup. In ``production`` and ``staging``
+    the engine refuses to start when decision records go to a store and there is no spill
+    location (neither this nor ``class_a_audit.file``): regulated tenants' records would have
+    nowhere to go when the queue is full."""
+    max_bytes: int = Field(default=256 * 1024 * 1024, ge=1024 * 1024)
+    """The file's size cap. An alert is raised at 80% of it; past it a regulated tenant's record
+    is dropped and counted, like a standard tenant's, so a long outage can't fill the filesystem
+    (which the class A file may share)."""
 
 
 class SignedContextSettings(_Section):
@@ -361,6 +439,7 @@ class EngineSettings(_Section):
     catalog: CatalogSettings = Field(default_factory=CatalogSettings)
     shutdown: ShutdownSettings = Field(default_factory=ShutdownSettings)
     class_a_audit: ClassAAuditSettings = Field(default_factory=ClassAAuditSettings)
+    decision_spill: DecisionSpillSettings = Field(default_factory=DecisionSpillSettings)
     signed_context: SignedContextSettings = Field(default_factory=SignedContextSettings)
     environment: Environment = "production"
     """Where the engine runs (:data:`ENVIRONMENTS`). Defaults to ``production``, so a
@@ -582,6 +661,7 @@ _GATEWAY_FLOATS = (
     "cancel_grace_s",
     "probe_initial_delay_s",
     "probe_max_delay_s",
+    "degraded_window_s",
     "warning_interval_s",
     "close_timeout_s",
 )

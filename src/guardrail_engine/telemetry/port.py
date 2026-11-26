@@ -57,13 +57,13 @@ CHECK_ATTRIBUTES: tuple[str, ...] = (
     "guardrail.failure_kind",
     "guardrail.failure_reason",
     "guardrail.capacity_limited",
+    "guardrail.degraded",
     "guardrail.retry_after_ms",
     "guardrail.policy_source",
     "guardrail.fired",
     # M3-01: the ids of the deterministic rules that fired (``deny__<id>``,
-    # ``tool_allowlist``, ``tool_mismatch``, ``xtenant_identifier``, ``size_limit``). Ids only:
-    # never the text a
-    # rule matched. Left out when none fired.
+    # ``tool_allowlist``, ``tool_mismatch``, ``xtenant_identifier``, ``size_limit``,
+    # ``p__secret``). Ids only: never the text a rule matched. Left out when none fired.
     "guardrail.deterministic_rules",
     "guardrail.cancelled",
     # M1-14: whether PII redaction ran (``applied`` / ``failed``), and spans replaced per

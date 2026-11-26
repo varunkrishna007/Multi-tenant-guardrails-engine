@@ -42,6 +42,7 @@ from calibration.run import (
     redaction_affected,
     render,
     render_report,
+    secret_blocked,
     short_cells,
     without_cells,
 )
@@ -107,9 +108,21 @@ def assert_same_as_direct(spy, rows, direct, records):
     with the same nonce (and, for tools rows, the row's own tools), and its questions are
     the direct harness's minus the ``_v1`` keys. Each draw's redaction counts (read from
     ``Verdict.pii_redacted``) are the direct harness's counts for the row."""
-    assert len(spy.sent) == len(rows)
-    calls = [r for r in records if r["type"] == "call"]
-    for row, (text, questions), record in zip(rows, spy.sent, calls, strict=True):
+    all_calls = [r for r in records if r["type"] == "call"]
+    # M7-01: a row with a known-format credential in its content, at a guard point of
+    # ``p__secret``, is a floor block with no model call: nothing is sent, no score recorded.
+    for row, record in zip(rows, all_calls, strict=True):
+        if secret_blocked(row):
+            assert (record["outcome"], record["reason"], record["provider_calls"]) == (
+                "deterministic",
+                "deterministic",
+                0,
+            ), row["id"]
+            assert record["probabilities"] == {}, row["id"]
+    sent_rows = [r for r in rows if not secret_blocked(r)]
+    calls = [r for r, row in zip(all_calls, rows, strict=True) if not secret_blocked(row)]
+    assert len(spy.sent) == len(sent_rows)
+    for row, (text, questions), record in zip(sent_rows, spy.sent, calls, strict=True):
         nonce = re.search(r"nonce ([0-9a-f]{32})", text).group(1)
         cap = direct.max_content_tokens[row["guard_point"]]
         assert text == render(row, nonce, cap), row["id"]

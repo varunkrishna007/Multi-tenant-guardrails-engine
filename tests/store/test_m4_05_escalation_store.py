@@ -186,6 +186,17 @@ async def test_an_item_round_trips_and_a_duplicate_is_ignored(stores):
     assert await stores.scoped().get(ACME, "esc_" + "0" * 24) is None
 
 
+async def test_the_candidate_rules_of_a_refusal_round_trip_and_never_change(stores):
+    """M7-08: a provider refusal's item holds no fired rule and names the escalate-only rules."""
+    item = make_item(rules=(), reason="provider_safety", candidate_rules=("d__a", "d__b"))
+    assert await stores.scoped().insert(item) is True
+    got = await stores.scoped().get(ACME, item.id)
+    assert got is not None and got.rules == () and got.candidate_rules == ("d__a", "d__b")
+    plain = make_item(n=1)
+    await stores.scoped().insert(plain)
+    assert (await stores.scoped().get(ACME, plain.id)).candidate_rules == ()
+
+
 async def test_listing_is_by_cursor_in_insertion_order_with_filters(stores):
     items = [make_item(n=i, created=NOW - DAY * (5 - i)) for i in range(5)]
     for i in items:
@@ -711,6 +722,21 @@ async def test_the_function_puts_the_callers_tenant_setting_back(pg_stores):
     async with s.ret_pool.acquire() as conn, conn.transaction():
         await conn.fetchrow(call, ACME)  # nothing was set before: the swept tenant isn't left
         assert await conn.fetchval("SELECT current_setting('app.tenant_id', true)") in ("", None)
+
+
+async def test_the_candidate_rules_cannot_be_changed_after_routing(pg_stores):
+    import asyncpg
+
+    s = pg_stores
+    item = make_item(rules=(), reason="provider_safety", candidate_rules=("d__a",))
+    await s.scoped().insert(item)
+    with pytest.raises(asyncpg.exceptions.RestrictViolationError):  # the owner's own update
+        await s.pg_env.pool.execute("UPDATE escalation_items SET candidate_rules = '[]'::jsonb")
+    with pytest.raises(asyncpg.PostgresError):  # the service role has no grant on the column
+        async with s.app_pool.acquire() as conn, conn.transaction():
+            await conn.execute("SELECT set_config('app.tenant_id', $1, true)", ACME)
+            await conn.execute("UPDATE escalation_items SET candidate_rules = '[]'::jsonb")
+    assert (await s.scoped().get(ACME, item.id)).candidate_rules == ("d__a",)
 
 
 async def test_the_retention_mode_cannot_be_changed_after_routing(pg_stores):

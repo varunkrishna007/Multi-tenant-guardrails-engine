@@ -387,7 +387,10 @@ def refuse_to_start(
     if not args.live:
         return
     if environ.get(LIVE_KEY) != LIVE_TOKEN:
-        raise Refused(f"a live run needs {LIVE_KEY}={LIVE_TOKEN} in the environment")
+        raise Refused(
+            f"a live run needs the user's written approval, recorded in the environment as "
+            f"{LIVE_KEY} (see docs/m3-09-load-test.md); the value is not printed here"
+        )
     if args.max_provider_calls is None or args.max_tokens is None:
         raise Refused("a live run needs --max-provider-calls and --max-tokens")
     if args.max_provider_calls > HARD_MAX_CALLS[kind] or args.max_tokens > HARD_MAX_TOKENS[kind]:
@@ -870,7 +873,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     r.add_argument("--max-provider-calls", type=int, default=None)
     r.add_argument("--max-tokens", type=int, default=None)
     r.add_argument("--live", action="store_true",
-                   help=f"send to the provider (also needs {LIVE_KEY}={LIVE_TOKEN})")  # fmt: skip
+                   help=f"send to the provider (also needs {LIVE_KEY} in the environment, with the "
+                        "user's written approval)")  # fmt: skip
     args = parser.parse_args(argv)
     try:
         if args.command == "plan":

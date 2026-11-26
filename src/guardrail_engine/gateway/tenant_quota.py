@@ -114,6 +114,7 @@ from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from guardrail_engine.gateway.token_rate import _EPSILON as _LEVEL_EPSILON
 from guardrail_engine.gateway.token_rate import (
     DEFAULT_BURST_CAPACITY_S as PROJECT_BURST_CAPACITY_S,
 )
@@ -747,7 +748,7 @@ class ConsumerAllowances:
                 limit=ALLOWANCE_REQUESTS_PER_MINUTE,
             )
         bucket = self._token_bucket(consumer)
-        reserve = max(1, min(tokens, int(bucket["capacity"])))
+        reserve = self._reserve(consumer, tokens)
         wait = store.acquire(self._key("np", consumer), reserve, now=now, **bucket)
         if wait > 0:
             store.adjust(r_key, -1, now=now, **requests)  # give the request back
@@ -761,6 +762,37 @@ class ConsumerAllowances:
         month = pacific_month_key(self._wall_clock())
         store.add_spend(self._key("nm", consumer), month, self._usd(reserve))
         return QuotaCharge(tenant_id, tier or "", consumer, tokens=reserve, requests=1, month=month)
+
+    def _reserve(self, consumer: str, tokens: int) -> int:
+        """What a call of ``tokens`` takes from the consumer's token bucket when it is sent:
+        its estimate, but never more than the bucket holds (a larger call is admitted by a full
+        bucket and settles the difference, in debt, when its usage is known)."""
+        return max(1, min(tokens, int(self._token_bucket(consumer)["capacity"])))
+
+    def token_capacity(self, consumer: str) -> int:
+        """The most the consumer's token bucket holds (0 when nothing is enforced for it)."""
+        return int(self._token_bucket(consumer)["capacity"]) if self._applies(consumer) else 0
+
+    def admission_wait(self, consumer: str, tokens: int, *, now: float) -> float:
+        """Seconds until a call of ``tokens`` would be admitted by the consumer's minute
+        allowances (its tokens and its requests a minute): 0.0 if it would be now. It takes
+        nothing and changes nothing, so a caller that paces itself can wait exactly as long as
+        the limiter would make it, instead of being refused. The day's and the month's limits
+        are not included (they don't refill in seconds)."""
+        if not self._applies(consumer):
+            return 0.0
+        store = self._store()
+        wait = 0.0
+        requests = self._request_bucket(consumer)
+        level = store.level(self._key("nr", consumer), now=now, **requests)
+        if level + _LEVEL_EPSILON < 1:
+            wait = (1 - level) / requests["rate_per_s"]
+        bucket = self._token_bucket(consumer)
+        need = self._reserve(consumer, tokens)
+        level = store.level(self._key("np", consumer), now=now, **bucket)
+        if level + _LEVEL_EPSILON < need:
+            wait = max(wait, (need - level) / bucket["rate_per_s"])
+        return wait
 
     def _usd(self, tokens: float) -> float:
         assert self._project is not None

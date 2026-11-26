@@ -56,13 +56,15 @@ _INSERT_BATCH = """
 WITH ins AS (
     INSERT INTO decision_records
         (tenant_id, request_id, guard_point, ts, retain_until, record, decision, fired_rules,
-         latency_ms, input_tokens, bundle_version)
+         latency_ms, input_tokens, bundle_version, record_key)
     SELECT t, req, gp, ts, ru, rec, dec,
            CASE WHEN fr = '' THEN '{}'::text[] ELSE string_to_array(fr, chr(31)) END,
-           lat, tok, ver
+           lat, tok, ver, rk
     FROM unnest($1::text[], $2::text[], $3::text[], $4::timestamptz[], $5::timestamptz[],
-                $6::text[], $7::text[], $8::text[], $9::real[], $10::integer[], $11::integer[])
-         AS u(t, req, gp, ts, ru, rec, dec, fr, lat, tok, ver)
+                $6::text[], $7::text[], $8::text[], $9::real[], $10::integer[], $11::integer[],
+                $12::text[])
+         AS u(t, req, gp, ts, ru, rec, dec, fr, lat, tok, ver, rk)
+    ON CONFLICT (tenant_id, record_key) WHERE record_key IS NOT NULL DO NOTHING
     RETURNING id, tenant_id, ts, record
 )
 INSERT INTO decision_record_rules (record_id, tenant_id, rule, ts, action, layer, mode)
@@ -73,11 +75,16 @@ WHERE ins.tenant_id IS NOT NULL
 ORDER BY ins.id, f ->> 'rule', CASE f ->> 'action' WHEN 'block' THEN 0 ELSE 1 END
 """
 """One statement per tenant group: the records, and for each fired rule one index row (the most
-severe action when a rule appears twice) with the rule's action, layer and mode (M4-06)."""
+severe action when a rule appears twice) with the rule's action, layer and mode (M4-06). A record
+with a ``record_key`` the tenant already has (a spilled record replayed twice, M7-04) is skipped,
+and so are its index rows; a record without one never conflicts."""
 
 
-def insert_columns(records: Sequence[AuditRecord]) -> tuple[list[Any], ...]:
-    """The eleven column arrays of :data:`_INSERT_BATCH`, one element per record."""
+def insert_columns(
+    records: Sequence[AuditRecord], keys: Sequence[str | None] | None = None
+) -> tuple[list[Any], ...]:
+    """The twelve column arrays of :data:`_INSERT_BATCH`, one element per record; the last is
+    each record's ``record_key`` (None when it has none)."""
     return (
         [r.tenant_id for r in records],
         [r.request_id for r in records],
@@ -90,6 +97,7 @@ def insert_columns(records: Sequence[AuditRecord]) -> tuple[list[Any], ...]:
         [r.latency_ms for r in records],
         [r.input_tokens for r in records],
         [r.bundle_version for r in records],
+        list(keys) if keys is not None else [None] * len(records),
     )
 
 
@@ -122,9 +130,21 @@ class PostgresDecisionStore:
             async with record_connection(self._pool, tenant_id) as conn:
                 columns = insert_columns(group)
                 if tenant_id is None:
-                    await conn.execute(_INSERT_UNOWNED, *columns[:7], *columns[8:])
+                    await conn.execute(_INSERT_UNOWNED, *columns[:7], *columns[8:11])
                 else:
                     await conn.execute(_INSERT_BATCH, *columns)
+
+    async def append_keyed(self, records: Sequence[AuditRecord], keys: Sequence[str]) -> None:
+        """One tenant's records, each under its key; a key the tenant already has is skipped
+        (M7-04). A record without a tenant has no key to be unique within, so it is refused."""
+        if len(records) != len(keys):
+            raise ValueError("one key for each record")
+        tenants = {r.tenant_id for r in records}
+        if len(tenants) > 1 or None in tenants:
+            raise ValueError("keyed records are one verified tenant's")
+        for tenant_id in tenants:
+            async with record_connection(self._pool, tenant_id) as conn:
+                await conn.execute(_INSERT_BATCH, *insert_columns(records, keys))
 
     async def page(
         self, scope: TenantScope, flt: DecisionFilter, limit: int, after: Position | None

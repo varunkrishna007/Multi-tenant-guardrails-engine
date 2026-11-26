@@ -399,7 +399,11 @@ def test_run_cli_records_the_plan_mix_and_ceilings_and_makes_one_call_per_check(
     assert started["token_ceiling"] == 2 * started["estimated_input_tokens"]
     assert "provider_refusal" in started["stops"]
     assert len([r for r in records if r["type"] == "call"]) == 25
-    assert len(fake.calls) == 25  # one provider call per check
+    # one provider call per check, except a row with a known-format credential in its content
+    # at a guard point of p__secret: the engine blocks it before any model call (M7-01)
+    blocked = [r for r in records if r["type"] == "call" and r["reason"] == "deterministic"]
+    assert all(r["provider_calls"] == 0 and r["probabilities"] == {} for r in blocked)
+    assert len(fake.calls) == 25 - len(blocked)
     assert gs.main(argv) == 2  # an existing --out is refused
 
 
@@ -423,7 +427,7 @@ def test_the_gate_simulation_tags_every_check_as_a_test_consumer(tmp_path, monke
             "--interval-s", "0", "--gap-s", "0", "--seed", SEED,
             "--max-provider-calls", "50"]  # fmt: skip
     assert gs.main(argv) == 0
-    assert tags == ["test"] * 25
+    assert set(tags) == {"test"} and 24 <= len(tags) <= 25  # (a floor block makes no call)
 
 
 def test_run_cli_refuses_a_call_ceiling_below_the_number_of_checks(tmp_path, capsys):

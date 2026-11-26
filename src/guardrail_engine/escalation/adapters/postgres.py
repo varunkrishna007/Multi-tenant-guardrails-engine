@@ -47,7 +47,8 @@ _INVALID_PARAMETER = "22023"  # invalid_parameter_value, raised by the function'
 
 _COLUMNS = (
     "seq, tenant_id, id, request_id, guard_point, created_at, target, reason, bundle_version, "
-    "rules, content_sha256, store_content, retention_mode, content, content_truncated, "
+    "rules, candidate_rules, content_sha256, store_content, retention_mode, content, "
+    "content_truncated, "
     "triggered_by, status, "
     "decision, resolution_reason, resolved_by, resolved_at, label_set_id, label_mode"
 )
@@ -64,6 +65,7 @@ def _item(row: Any) -> EscalationItem:
         reason=row["reason"],
         bundle_version=row["bundle_version"],
         rules=tuple(RuleRef(**r) for r in json.loads(row["rules"])),
+        candidate_rules=tuple(json.loads(row["candidate_rules"])),
         content_sha256=row["content_sha256"],
         store_content=row["store_content"],
         retention_mode=row["retention_mode"],
@@ -128,13 +130,14 @@ class _ScopedPostgresEscalations:
             row = await conn.fetchrow(
                 "INSERT INTO escalation_items (tenant_id, id, request_id, guard_point, created_at, "
                 "target, reason, bundle_version, rules, content_sha256, store_content, content, "
-                "content_truncated, triggered_by, retention_mode) "
-                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, $15) "
+                "content_truncated, triggered_by, retention_mode, candidate_rules) "
+                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, $15, "
+                "$16::jsonb) "
                 "ON CONFLICT (tenant_id, id) DO NOTHING RETURNING seq",
                 item.tenant_id, item.id, item.request_id, item.guard_point, item.created_at,
                 item.target, item.reason, item.bundle_version, _rules_json(item),
                 item.content_sha256, item.store_content, item.content, item.content_truncated,
-                item.triggered_by, item.retention_mode,
+                item.triggered_by, item.retention_mode, json.dumps(list(item.candidate_rules)),
             )  # fmt: skip
         return row is not None
 

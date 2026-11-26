@@ -3,9 +3,10 @@ template. Framework-independent, like the other admin services.
 
 **``GET catalog``** (viewer) is read-only. It lists every floor version with its rules and their
 text, every pack version, and every template, with where each can be used: a floor version
-below the platform minimum is shown as ``extendable: false`` (it stays in the catalog because
-stored bundles extend it, see :class:`CatalogAdmin`), and the packs the tenant's tier requires
-are marked. A floor rule's thresholds and text are shown; no score of any kind is.
+below the platform minimum, or not yet released, is shown as ``extendable: false`` (it stays
+in the catalog because stored bundles extend it, see :class:`CatalogAdmin`), and the packs
+the tenant's tier requires are marked. A floor rule's thresholds and text are shown; no
+score of any kind is.
 
 **Applying a template** (guardrail_admin) copies it into the tenant's draft as a ``t__`` rule
 that records ``origin: "template:<id>@<version>"`` and ``template_unedited: true``, and imports
@@ -140,7 +141,8 @@ class CatalogService:
                 {
                     "version": version,
                     "ref": floor.ref,
-                    "extendable": version >= self._settings.min_floor_version,
+                    "extendable": version >= self._settings.min_floor_version
+                    and self._catalog.is_released(version),
                     "rules": [rule_view(r) for r in floor.content.rules],
                 }
             )
@@ -175,14 +177,17 @@ class CatalogService:
         }
 
     def _starter(self, tenant_id: str, attributes: TenantAttributes) -> dict[str, Any] | None:
-        """The bundle a new tenant starts from (M4-10, R4.1): the newest extendable floor, and
-        the packs that are **on by default**, plus those its tier and contract require (each at
-        its newest version). A tenant that opts out of a default-on pack leaves it out of
-        ``extends``, which the publish's class A diff records; a required one can't be left out
-        (the compiler refuses). None when no floor can be extended."""
+        """The bundle a new tenant starts from (M4-10, R4.1): the newest floor a tenant may
+        extend (one the platform has released, M7-05), and the packs that are **on by default**,
+        plus those its tier and contract require (each at its newest version). A tenant that
+        opts out of a default-on pack leaves it out of ``extends``, which the publish's class A
+        diff records; a required one can't be left out (the compiler refuses). None when no
+        floor can be extended."""
         floors = [
-            v for v in self._catalog.floor_versions() if v >= self._settings.min_floor_version
-        ]
+            v
+            for v in self._catalog.floor_versions()
+            if v >= self._settings.min_floor_version and self._catalog.is_released(v)
+        ]  # a floor the platform hasn't released can't be extended: the starter would not compile
         if not floors:
             return None
         wanted = (

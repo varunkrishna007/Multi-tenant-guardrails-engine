@@ -106,6 +106,7 @@ class EscalationItem:
     """The verdict's reason (``policy``, ``deterministic``...), a fixed word."""
     bundle_version: int | None
     rules: tuple[RuleRef, ...]
+    """The rules that fired and called for the escalation."""
     content_sha256: str | None
     """``sha256:<hex>`` of the **pre-redaction** content (PF-14), as in the decision record."""
     store_content: str
@@ -124,6 +125,10 @@ class EscalationItem:
     """Who triggered the check, if the request said (``issuer#subject``). The check context
     carries no end-user identity today, so the engine leaves this None; the resolver is refused
     when it equals the actor, so a source that does know can use it (see the docs)."""
+    candidate_rules: tuple[str, ...] = ()
+    """M7-08: for an escalation caused by a provider refusal, the keys of the escalate-only rules
+    at that guard point: what the content might have been about. Nothing fired (``rules`` is
+    empty): the provider refused to judge it. Keys only, never a score or the provider's text."""
     seq: int = 0
     """The store's insertion order: the pagination cursor. Set by the store."""
     status: str = STATUS_OPEN

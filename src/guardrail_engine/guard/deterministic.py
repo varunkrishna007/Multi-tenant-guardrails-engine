@@ -33,6 +33,14 @@ model call, and they never depend on the model:
 * **Cross-tenant identifiers** (floor, ``tool_result`` and ``output``): any other tenant's
   identifier in the content is a ``block`` that no tenant can disable
   (:class:`CrossTenantScanner`, over the :class:`OtherTenantIdentifiers` port).
+* **Credentials in a known format** (floor, ``plan``, ``tool_call``, ``tool_result`` and
+  ``output``, the guard points of ``p__secret``; M7-01): a key, token, private-key block or
+  URL with a password in the content is a ``block`` that no tenant can disable, reported as
+  rule ``p__secret`` with kind ``secret_format`` and no model call
+  (:func:`check_secrets`, :mod:`guardrail_engine.deterministic.secret_formats`). At ``input``
+  the same credentials are replaced by ``[SECRET]`` before rendering instead (reported as a
+  ``redact`` hit with the same rule id); the model question ``p__secret`` stays for every
+  other format.
 
 Every rule that fires is reported as a :class:`DeterministicHit`: its id, kind, action, layer
 and a count. **Never the matched text, a position or a length**, and the cross-tenant scan
@@ -53,6 +61,7 @@ from guardrail_engine.deterministic.regex import RegexEngine, RegexSet
 from guardrail_engine.deterministic.rules import (
     CROSS_TENANT_RULE,
     REDACTION_PLACEHOLDER,
+    SECRET_RULE,
     SIZE_LIMIT_RULE,
     TOOL_ALLOWLIST_RULE,
     TOOL_MISMATCH_RULE,
@@ -62,6 +71,7 @@ from guardrail_engine.deterministic.rules import (
     DeterministicKind,
     GuardPointChecks,
 )
+from guardrail_engine.deterministic.secret_formats import SecretDetector
 from guardrail_engine.guard.tool_schema import call_valid
 from guardrail_engine.guard.verdict import DeterministicHit
 
@@ -71,6 +81,32 @@ CROSS_TENANT_GUARD_POINTS = frozenset({"tool_result", "output"})
 logger = logging.getLogger(__name__)
 
 _TOOL_KEY = "tool"
+
+
+def check_secrets(detector: SecretDetector, content: str) -> DeterministicHit | None:
+    """M7-01: the floor ``block`` when ``content`` holds a credential in a known format
+    (:mod:`guardrail_engine.deterministic.secret_formats`), else None. Run at the guard points
+    of ``p__secret``; the count is how many were found."""
+    if not (count := detector.count(content)):
+        return None
+    return DeterministicHit(
+        rule=SECRET_RULE,
+        kind=DeterministicKind.SECRET_FORMAT,
+        action=DeterministicAction.BLOCK,
+        layer="floor",
+        count=count,
+    )
+
+
+def secret_redaction_hit(count: int) -> DeterministicHit:
+    """M7-01: the record that ``count`` credentials were replaced by ``[SECRET]``."""
+    return DeterministicHit(
+        rule=SECRET_RULE,
+        kind=DeterministicKind.SECRET_FORMAT,
+        action=DeterministicAction.REDACT,
+        layer="floor",
+        count=count,
+    )
 
 
 def size_limit_hit() -> DeterministicHit:

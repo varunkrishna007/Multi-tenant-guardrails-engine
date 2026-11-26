@@ -92,6 +92,8 @@ def test_the_endpoint_table_is_the_design_table_row_for_row():
         ("GET", "/v1/platform/redteam/nightly/{tenant_id}", PLATFORM),
         ("GET", "/v1/platform/redteam/quarantine", PLATFORM),
         ("POST", "/v1/platform/redteam/quarantine/clear", PLATFORM),
+        ("GET", "/v1/platform/provider/degraded", PLATFORM),
+        ("PUT", "/v1/platform/provider/degraded", PLATFORM),
         ("GET", "/v1/platform/packs", PLATFORM),
         ("PUT", "/v1/platform/packs/{pack}", PLATFORM),
     ]  # fmt: skip
@@ -306,7 +308,8 @@ async def test_a_denied_decision_and_a_platform_route_carry_no_scope():
 def test_the_platform_floor_rows_are_the_operators_alone():
     assert len(PLATFORM_TENANT_ENDPOINTS) == 4  # floor, tier (M5-01), re-pin, promote
     platform_only = [e for e in ENDPOINTS if not e.tenant_scoped and e.required == PLATFORM]
-    assert len(platform_only) == 14  # packs (2), the nightly red-team (4) and the floor (8)
+    # packs (2), the nightly red-team (4), the provider hold (2, M7-11) and the floor (8)
+    assert len(platform_only) == 16
 
 
 @pytest.mark.parametrize(

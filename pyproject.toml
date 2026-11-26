@@ -17,6 +17,11 @@ dependencies = [
     "pyjwt[crypto]>=2.9,!=2.10.0,<3",
 ]
 
+[project.optional-dependencies]
+service = [
+    "uvicorn==0.54.0",
+]
+
 [dependency-groups]
 dev = [
     "hypothesis>=6.170.15",

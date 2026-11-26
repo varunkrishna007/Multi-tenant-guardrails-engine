@@ -97,6 +97,7 @@ import contextlib
 import hashlib
 import hmac
 import json
+import math
 import re
 import secrets
 import sys
@@ -146,6 +147,14 @@ MAX_PROVIDER_CALLS_PER_CHECK = 2
 """A check makes one provider call, and one retry after a timeout or unavailable (the
 gateway's). The token ceiling reserves both before a check is sent."""
 
+ADMISSION_MARGIN = 1.25
+"""A check waits for its estimate raised by this much: the limiter charges the engine's own figure
+for the request it builds, and the wait must not be a little short of it."""
+ADMISSION_ROUNDS = 8
+"""How many times a check asks the limiter and sleeps before it gives up. A check in debt from
+the one before needs two (the wait is exact; the second is for the clock's rounding)."""
+ADMISSION_SLACK_S = 0.01
+"""Added to each admission wait: seconds of slack over the refill the limiter asked for."""
 CONTRACT_VIOLATION_CAP = 10
 """The run stops (``unusable_answers``) once this many checks have ended in
 ``contract_violation`` (decided 2026-11-17): each is an answered draw with a short cell, but a
@@ -274,6 +283,12 @@ def settings_mapping(
         "environment": ENVIRONMENT,
         "platform": {"min_floor_version": floor_version},
         "gemini": {"paid_tier": True},
+        # A harness sends the same row for each draw to measure the model: repeat-attempt
+        # counting (M7-03) would refuse the later draws of a blocked row without asking it.
+        "guard": {"repeat_threshold": 0},
+        # It measures the model: the provider-health breaker (M7-11) would fail the rows that
+        # follow a few failed calls at once, which isn't what is being measured.
+        "gateway": {"degraded_consecutive": 0, "degraded_window_calls": 0},
     }
     if live:
         mapping["token_rate"] = {}
@@ -382,8 +397,12 @@ def verdict_fields(verdict: Any) -> dict[str, Any]:
     no_answer = sorted(
         ev.key for ev in verdict.rules if ev.p is None and ev.question_type == "noul"
     )
+    # M7-01: a floor block before any model call (a known-format credential in the content)
+    # is neither a score nor a failure: it carries no probabilities and is left out of every
+    # per-draw rule, like an incomplete example, but without stopping or re-attempting.
+    blocked = reason == "deterministic" and not verdict.model_called
     return {
-        "outcome": "answered" if answered else "failed",
+        "outcome": "answered" if answered else "deterministic" if blocked else "failed",
         "decision": verdict.decision.value,
         "reason": reason,
         "kind": verdict.failure_kind.value if verdict.failure_kind is not None else None,
@@ -503,6 +522,16 @@ class EngineRunner:
     consumer to a tenth of the project's token target, and fails a check fast with
     ``token_rate`` (no provider call) when a run outruns that; a live run paces itself under
     it rather than lose checks to its own limiter."""
+    admission_wait: Callable[[str, int], float] | None = None
+    """``(consumer, tokens) -> seconds``: how long the gateway's limiter would make a check of
+    that many API tokens wait (0.0 if it would admit it now). When set, each check waits
+    that long before it is sent, for its own estimate, so a run spaced by an average cannot
+    refuse itself on a larger check. Pass ``engine.gateway.consumer_admission_wait``."""
+    admission_margin: float = ADMISSION_MARGIN
+    """The estimate is raised by this much before the wait is asked for
+    (:data:`ADMISSION_MARGIN`)."""
+    admission_waits: int = 0
+    admission_wait_s: float = 0.0
     _last_start: float | None = field(default=None, init=False, repr=False)
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep
     boundary_waits: int = 0
@@ -520,6 +549,46 @@ class EngineRunner:
         (numbers, flags and event or exception *names*: never a header, URL or message)."""
         self.connections.append(info.diagnostics())
 
+    async def wait_for_admission(self, estimate: int, row_id: str) -> float:
+        """Sleeps until the limiter would admit a check of ``estimate`` API tokens; returns the
+        seconds waited. Re-asked after each sleep (a check in debt from the one before may need
+        more than one), and gives up after :data:`ADMISSION_ROUNDS` as a stop, not as a send: it
+        writes why (``run_stopped``, ``admission_gave_up``) and nothing is sent."""
+        if self.admission_wait is None or estimate <= 0:
+            return 0.0
+        need = max(1, math.ceil(estimate * self.admission_margin))
+        waited = 0.0
+        for _ in range(ADMISSION_ROUNDS):
+            wait = self.admission_wait(self.usage_class, need)
+            if wait <= 0:
+                break
+            wait += ADMISSION_SLACK_S
+            await self.sleep(wait)
+            waited += wait
+        else:
+            self.write(
+                {"type": "run_stopped", "reason": "admission_gave_up", "example_id": row_id,
+                 "tokens_asked": need, "rounds": ADMISSION_ROUNDS, "waited_s": round(waited, 3),
+                 "before_sending": True,
+                 "at": datetime.now(UTC).isoformat(timespec="milliseconds")}
+            )  # fmt: skip
+            raise StopRun(
+                f"the limiter would not admit a check of about {need} tokens after "
+                f"{waited:.0f} s of waiting: stopping before it is sent"
+            )
+        if waited:
+            self.admission_waits += 1
+            self.admission_wait_s += waited
+        return waited
+
+    def screen_record(self, record: Mapping[str, Any], row: Mapping[str, Any], draw: int) -> None:
+        """Called with each check's record once it is written, before any stop rule. A runner
+        with a rule of its own raises :class:`StopRun` here; this one has none."""
+
+    def counts_as_failure(self, record: Mapping[str, Any]) -> bool:
+        """Whether the record counts in the failure-rate stop rule."""
+        return record["outcome"] == "failed"
+
     async def wait_out_minute_boundary(self) -> float:
         """Sleeps until :10 if now is in :55-:10 (UTC); returns the seconds waited."""
         waited = 0.0
@@ -535,18 +604,23 @@ class EngineRunner:
         with self.out.open("a") as fh:
             fh.write(json.dumps(record, sort_keys=True) + "\n")
 
+    def gate_send(self, row: Mapping[str, Any]) -> None:
+        """Called after the pacing and boundary waits, just before a check is sent. A runner with
+        a reason not to send raises :class:`StopRun` here; this one has none."""
+
     async def check(self, row: Mapping[str, Any], draw: int, attempt: int = 1) -> dict[str, Any]:
         if live_exclusion(row) is not None:  # never reached: rows are filtered on load
             raise StopRun(f"refusing to send excluded row {row.get('id')}")
         from guardrail_engine.guard import CheckContext
 
-        if self.min_interval_s > 0:
-            if self._last_start is not None:
-                wait = self._last_start + self.min_interval_s - self.clock()
-                if wait > 0:
-                    await self.sleep(wait)
-            self._last_start = self.clock()
         estimate = self.token_estimates.get(row["id"], 0)
+        if self.min_interval_s > 0 and self._last_start is not None:
+            wait = self._last_start + self.min_interval_s - self.clock()
+            if wait > 0:
+                await self.sleep(wait)
+        await self.wait_for_admission(estimate, row["id"])
+        if self.min_interval_s > 0:
+            self._last_start = self.clock()
         if self.token_ceiling is not None and (
             self.tokens_used + MAX_PROVIDER_CALLS_PER_CHECK * estimate > self.token_ceiling
         ):  # before sending: the worst case for this check would pass the ceiling
@@ -573,6 +647,7 @@ class EngineRunner:
                 f"{self.provider_call_ceiling}; stopping before it is sent"
             )
         waited = await self.wait_out_minute_boundary() if self.avoid_minute_boundary else 0.0
+        self.gate_send(row)  # after every wait: the last point before the request is sent
         tenant_id = tenant_of(row)[0]
         ctx = CheckContext(signed_context=self.verifier.issue(tenant_id),
                            conversation=context_items(row))  # fmt: skip
@@ -592,6 +667,7 @@ class EngineRunner:
         if waited:
             record["boundary_wait_s"] = round(waited, 3)
         self.write(record)
+        self.screen_record(record, row, draw)
         if record["reason"] == "provider_safety":
             self.write({"type": "run_stopped", "reason": "provider_refusal",
                         "example_id": row["id"], "draw": draw, "at": started})  # fmt: skip
@@ -646,7 +722,7 @@ class EngineRunner:
                     f"{self.contract_violations} checks ended in contract_violation: stopping "
                     "(a systematic answer-format problem?)"
                 )
-        self.recent.append(record["outcome"] == "failed")
+        self.recent.append(self.counts_as_failure(record))
         if (failed := sum(self.recent)) > FAIL_FRACTION * FAIL_WINDOW:
             self.write({"type": "run_stopped", "reason": "failures", "failed_checks": failed,
                         "window_checks": len(self.recent), "example_id": row["id"],
@@ -713,7 +789,8 @@ def incomplete(records: Sequence[Mapping[str, Any]], draws: int) -> dict[str, in
     count: dict[str, int] = {}
     for eid, _ in answered_draws(records):
         count[eid] = count.get(eid, 0) + 1
-    ids = {r["example_id"] for r in records if r.get("type") == "call"}
+    ids = {r["example_id"] for r in records
+           if r.get("type") == "call" and r["outcome"] != "deterministic"}  # fmt: skip
     return {e: count.get(e, 0) for e in sorted(ids) if count.get(e, 0) < draws}
 
 

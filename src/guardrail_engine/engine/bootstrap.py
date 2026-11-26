@@ -37,12 +37,14 @@ import json
 import logging
 import os
 import stat
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from typing import Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict
 
+from guardrail_engine.audit.spill import DecisionSpill, SpillFullError, spill_file_beside
 from guardrail_engine.authz.authorizer import CrossTenantEvent
 from guardrail_engine.policy.diff import (
     BUNDLE_URL_FIELDS as BUNDLE_URL_FIELDS,
@@ -222,22 +224,44 @@ class AppendOnlyFileAdminAuditSink:
     def append_line(self, data: bytes) -> None:
         """Append one complete line (ending in a newline) under the rules above. Raises
         :class:`ClassAAuditFileError`. A fragment of a short write is ended as its own line."""
-        fd = self._open()
-        problem = None
-        try:
-            fcntl.flock(fd, fcntl.LOCK_EX)
-            written = os.write(fd, data)
-            if written != len(data):
-                problem = "short write; the publish is not activated"
-                if written:
-                    _end_fragment(fd)
-            os.fsync(fd)
-        except OSError as e:
-            problem = problem or f"write failed ({_kind(e)})"
-        finally:
-            os.close(fd)  # also releases the lock
-        if problem is not None:
-            raise ClassAAuditFileError(f"class A audit file {self.path}: {problem}")
+        self._append(data, None)
+
+    def _append(self, data: bytes, max_bytes: int | None) -> int:
+        """The append of :meth:`append_line`; with ``max_bytes``, refused (``SpillFullError``)
+        when the file, **as it is when the lock is taken** (not as any caller counted it), plus the
+        line would be over the cap. Returns the file's size after the write."""
+        for _ in range(_REOPEN_LIMIT):
+            fd = self._open()
+            problem = None
+            retired = full = False
+            size = 0
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX)
+                size = os.fstat(fd).st_size
+                if os.fstat(fd).st_nlink == 0:
+                    retired = True  # removed by :meth:`remove_if_size` since it was opened
+                elif max_bytes and size + len(data) > max_bytes:
+                    full = True
+                else:
+                    written = os.write(fd, data)
+                    size += written
+                    if written != len(data):
+                        problem = "short write; the publish is not activated"
+                        if written:
+                            _end_fragment(fd)
+                    os.fsync(fd)
+            except OSError as e:
+                problem = problem or f"write failed ({_kind(e)})"
+            finally:
+                os.close(fd)  # also releases the lock
+            if retired:
+                continue
+            if full:
+                raise SpillFullError(f"the spill file is at its cap of {max_bytes} bytes")
+            if problem is not None:
+                raise ClassAAuditFileError(f"class A audit file {self.path}: {problem}")
+            return size
+        raise ClassAAuditFileError(f"class A audit file {self.path}: removed while it was written")
 
     # ------------------------------------------------------------------ opening
 
@@ -255,7 +279,9 @@ class AppendOnlyFileAdminAuditSink:
             raise ClassAAuditFileError(f"class A audit file {self.path}: {problem}")
         return fd
 
-    def _open_checked(self) -> int:
+    def _walk_directory(self) -> int:
+        """A descriptor on the directory holding the file, reached one component at a time
+        without following a link, and checked. The caller closes it."""
         path = self.path.absolute()  # not resolved: a symlink is refused, never followed
         parts = path.parts[1:]
         if not parts or any(part in (".", "..") for part in parts):
@@ -275,7 +301,15 @@ class AppendOnlyFileAdminAuditSink:
                 os.close(directory)
                 directory = child
             _check_directory(os.fstat(directory))
-            fd, created = _open_file(parts[-1], directory)
+        except BaseException:
+            os.close(directory)
+            raise
+        return directory
+
+    def _open_checked(self) -> int:
+        directory = self._walk_directory()
+        try:
+            fd, created = _open_file(self.path.absolute().name, directory)
             try:
                 _check_file(os.fstat(fd))
                 if created:
@@ -290,6 +324,8 @@ class AppendOnlyFileAdminAuditSink:
 
 _DIR_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC
 _FILE_FLAGS = os.O_WRONLY | os.O_APPEND | os.O_NOFOLLOW | os.O_CLOEXEC | os.O_NONBLOCK
+_READ_FLAGS = os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC | os.O_NONBLOCK
+_REOPEN_LIMIT = 3
 
 
 class _Refused(Exception):
@@ -345,6 +381,142 @@ def _kind(e: OSError) -> str:
     return names.get(e.errno or 0, type(e).__name__)
 
 
+class SpillFileSink(AppendOnlyFileAdminAuditSink):
+    """The spill file of regulated tenants' decision records (M7-04): the class A file's sink, with
+    the same checks, plus what a file of records with their own deletion time needs: reading it
+    whole, deleting it once nothing in it is pending, and rewriting it without what is done. The
+    class A event file has none of these; it is never read back, shortened or removed here."""
+
+    def append_capped(self, data: bytes, max_bytes: int) -> int:
+        """Append one line unless the file would then be over ``max_bytes``: the size is taken
+        under the exclusive lock, so every process sharing the file is counted, whatever it has
+        written since this one last looked. Raises :class:`SpillFullError`. Returns the file's
+        size after the write."""
+        return self._append(data, max_bytes or None)
+
+    def read_all(self) -> bytes | None:
+        """The file's whole content, read under a shared lock with the same checks as a write
+        (no link followed, a directory and a file only the engine's user can write). None when
+        the file does not exist. Raises :class:`ClassAAuditFileError`. A reader of the file
+        skips any line that doesn't parse (see the class text)."""
+        try:
+            directory = self._walk_directory()
+            try:
+                try:
+                    fd = os.open(self.path.name, _READ_FLAGS, dir_fd=directory)
+                except FileNotFoundError:
+                    return None
+                except OSError as e:
+                    if e.errno == errno.ELOOP:
+                        raise _Refused("cannot be read: it is a symbolic link") from None
+                    raise
+            finally:
+                os.close(directory)
+            try:
+                _check_file(os.fstat(fd))
+                fcntl.flock(fd, fcntl.LOCK_SH)
+                chunks = []
+                while chunk := os.read(fd, 1 << 20):
+                    chunks.append(chunk)
+                return b"".join(chunks)
+            finally:
+                os.close(fd)
+        except _Refused as e:
+            problem = str(e)
+        except OSError as e:
+            problem = f"cannot be read: {_kind(e)}"
+        raise ClassAAuditFileError(f"class A audit file {self.path}: {problem}")
+
+    def remove_if_size(self, size: int) -> bool:
+        """Delete the file if it is exactly ``size`` bytes (nothing was appended since the caller
+        read it), holding the exclusive lock, so a writer that opened it earlier notices it is
+        gone and writes to a new file. For a file that holds data with its own deletion time (a
+        spill of decision records), never for the class A events. Returns whether it was
+        removed; False too when there is no file."""
+        try:
+            directory = self._walk_directory()
+            try:
+                try:
+                    fd = os.open(self.path.name, _READ_FLAGS, dir_fd=directory)
+                except FileNotFoundError:
+                    return False
+                try:
+                    _check_file(os.fstat(fd))
+                    fcntl.flock(fd, fcntl.LOCK_EX)
+                    if os.fstat(fd).st_size != size:
+                        return False
+                    os.unlink(self.path.name, dir_fd=directory)
+                    os.fsync(directory)
+                    return True
+                finally:
+                    os.close(fd)
+            finally:
+                os.close(directory)
+        except _Refused as e:
+            problem = str(e)
+        except OSError as e:
+            problem = f"cannot be removed: {_kind(e)}"
+        raise ClassAAuditFileError(f"class A audit file {self.path}: {problem}")
+
+    def rewrite(self, transform: Callable[[bytes], bytes]) -> int:
+        """Replace the file's content with ``transform(content)``, atomically, holding the
+        exclusive lock while the content is read and the replacement is made: a temporary file of
+        the same kind (0600, this user's) is written and flushed, then renamed over the file. A
+        writer that had the old file open finds it gone after it takes the lock and writes to the
+        new one. A replacement with nothing in it deletes the file. Returns the new size; 0 when
+        there was no file or none is left. Raises
+        :class:`ClassAAuditFileError`."""
+        try:
+            directory = self._walk_directory()
+            try:
+                try:
+                    fd = os.open(self.path.name, _READ_FLAGS, dir_fd=directory)
+                except FileNotFoundError:
+                    return 0
+                try:
+                    _check_file(os.fstat(fd))
+                    fcntl.flock(fd, fcntl.LOCK_EX)
+                    chunks = []
+                    while chunk := os.read(fd, 1 << 20):
+                        chunks.append(chunk)
+                    new = transform(b"".join(chunks))
+                    if not new:  # nothing left to keep: the file goes
+                        os.unlink(self.path.name, dir_fd=directory)
+                        os.fsync(directory)
+                        return 0
+                    temp = f".{self.path.name}.{os.getpid()}.tmp"
+                    tfd = os.open(
+                        temp,
+                        os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
+                        0o600,
+                        dir_fd=directory,
+                    )
+                    try:
+                        view = memoryview(new)
+                        while view:
+                            view = view[os.write(tfd, view) :]
+                        os.fsync(tfd)
+                    finally:
+                        os.close(tfd)
+                    try:
+                        os.rename(temp, self.path.name, src_dir_fd=directory, dst_dir_fd=directory)
+                    except BaseException:
+                        with contextlib.suppress(OSError):
+                            os.unlink(temp, dir_fd=directory)
+                        raise
+                    os.fsync(directory)
+                    return len(new)
+                finally:
+                    os.close(fd)
+            finally:
+                os.close(directory)
+        except _Refused as e:
+            problem = str(e)
+        except OSError as e:
+            problem = f"cannot be rewritten: {_kind(e)}"
+        raise ClassAAuditFileError(f"class A audit file {self.path}: {problem}")
+
+
 class AppendOnlyFileAuthzAudit:
     """The durable sink for cross-tenant access events (AC-T1): the same append-only
     file, with the same safety rules, as the bootstrap publish events. One JSON line per
@@ -360,3 +532,14 @@ class AppendOnlyFileAuthzAudit:
     async def record(self, event: CrossTenantEvent) -> None:
         line = json.dumps({"event": "cross_tenant_access", **dataclasses.asdict(event)})
         await asyncio.to_thread(self._file.append_line, (line + "\n").encode("utf-8"))
+
+
+def decision_spill_beside(class_a_file: str | Path, *, max_bytes: int = 0) -> DecisionSpill:
+    """The spill file for regulated tenants' decision records (M7-04), in the directory of the
+    class A audit file and held to the same checks."""
+    return decision_spill_at(spill_file_beside(class_a_file), max_bytes=max_bytes)
+
+
+def decision_spill_at(path: str | Path, *, max_bytes: int = 0) -> DecisionSpill:
+    """The spill file at ``path``, held to the class A file's checks. ``max_bytes`` 0: no cap."""
+    return DecisionSpill(SpillFileSink(path), max_bytes=max_bytes)

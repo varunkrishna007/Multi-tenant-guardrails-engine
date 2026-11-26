@@ -26,7 +26,16 @@ store a test passes `decision_records=InMemoryDecisionRecords()`).
   `monitoring.dropped.DroppedAuditRecordsWatch`) when the count grows. That alert goes through the
   durable sink when the deployment passes one, off the check path.
 * Shutdown writes what is queued (bounded) after the Guard Service has finished its checks, and
-  counts the rest.
+  counts the rest. A regulated tenant's records still queued then are spilled instead
+  (see below).
+
+### Regulated tenants: wait, then spill (M7-04)
+
+A tenant whose tier is not `standard` is not dropped. When the queue is full, its check waits up
+to `regulated_wait_s` (0.25 s) for room; if there is none, the record is appended to
+`decision_records.spill.jsonl` and flushed to disk (`fsync`) before the check returns. Full
+description in [m7-04-durable-audit.md](m7-04-durable-audit.md). A standard tenant's record is
+still dropped and counted, as above, and the verdict is the same in every case.
 
 ### `retain_until` (R3)
 

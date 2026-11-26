@@ -215,7 +215,8 @@ def combine(decisions: Sequence[TimedDecision]) -> TimedDecision:
     * else any chunk **failed**: that failure, the first in chunk order. The guard point is
       a model failure (B1) whatever the other chunks said. ``retry_after_ms`` is the longest
       the failed chunks asked for, and ``capacity_limited`` is set if any failed chunk was
-      refused for capacity;
+      refused for capacity, and ``degraded`` if any failed chunk was failed because the provider
+      is degraded (M7-11);
     * else the **merged answer** (:func:`merge_answers`).
 
     The timing adds up the work (queue waits, provider time and provider calls over all
@@ -243,6 +244,7 @@ def combine(decisions: Sequence[TimedDecision]) -> TimedDecision:
             timing=timing,
             retry_after_ms=max(waits) if waits else None,
             capacity_limited=any(d.capacity_limited for d, _ in failed),
+            degraded=any(d.degraded for d, _ in failed),
         )
     answered = [r for r in results if isinstance(r, Answered)]
     return TimedDecision(result=merge_answers(answered), timing=timing)

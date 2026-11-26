@@ -43,6 +43,31 @@ uv run python -m capacity.load_live plan                             # live call
              {"id": "t_r", "weight": 1, "shape": "tool_loop", "project": "reg-1"}]}
 ```
 
+### The remote mode (M7-10)
+
+The harness above runs on a virtual clock, so it can't cross a process boundary. `capacity/load_remote.py`
+is its real-time counterpart for the guard as its own service:
+
+```sh
+uv run --extra service python -m capacity.load_remote --turns-per-second 2 --seconds 15 --model-latency-s 0.3
+```
+
+It sends the same seeded turns (the five guard points, a tool loop, benign synthetic text) through the
+SDK to **the guard service as a separate process** (`python -m guardrail_engine.service`, the fake
+model answering after `--model-latency-s`) and, for comparison, to the same engine in this process.
+`--mixed` makes the fake decide by markers in the text: one check in five is a block, an escalation, an
+unavailable failure or a provider refusal, in a fixed pattern, so both modes see the same mix and the
+outcome counts compare more than allows. It reports, per mode and per guard point, the end-to-end p50, p95 and p99, the throughput and the
+outcomes by reason, with a check the client gave up on or couldn't send (`guard_unreachable`) counted
+as its own outcome. The offered rate should stay under the key's capacity (4 in flight, so about
+`4 / latency` checks a second), or both modes show the gateway's own `admission_wait` refusals, the
+same ones. No provider is called. Run against one service process first; two replicas and the shared
+counters wait for design step 5 of M7-10. The service's in-flight and queue-wait figures stay in its
+audit records and are not on the wire.
+
+The live runs' environment variable (`GUARDRAILS_LIVE_LOADTEST`) is a flag that you mean it, not the
+user's approval, and a refusal doesn't print its value.
+
 ## 3. The default mix
 
 | Tenant | Weight | Shape | Pool |

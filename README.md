@@ -9,7 +9,7 @@ The Python package is `guardrail_engine`, the project's original code name. The 
 
 **This is a working reference implementation. It has not been deployed and has served no real traffic.** 49 of the 56 backlog stories are built and merged, and the offline suite passes (about 7,300 tests). The live path to Gemini has been exercised end to end by calibration runs on synthetic data.
 
-The [roadmap](ROADMAP.md) lists what's next and the open problems, and the [FAQ](docs/FAQ.md) answers common questions.
+The [roadmap](ROADMAP.md) lists what's next and the open problems, and the [FAQ](docs/FAQ.md) answers common questions. The [decisions glossary](docs/DECISIONS.md) explains the IDs the code cites, such as `PF-8`, `R6.3` and `M3-09`.
 
 **Known gaps:**
 
@@ -180,6 +180,7 @@ any decision value this SDK doesn't recognise withhold it.
 | `retryable` | True only for `model_failure`, `policy_unavailable` and `engine_closed` on a withheld result; never for a `limit_exceeded` failure, which is deterministic |
 | `failure_reason` | Why the check failed, as the stable enum below; None if it didn't fail |
 | `capacity_limited` | The gateway refused the call for lack of capacity: retry later |
+| `degraded` | The provider is not answering and the platform failed the check at once instead of waiting; the content is withheld, and the result is retryable after `retry_after_ms` |
 | `retry_after_ms` | How long to wait before retrying, when the gateway supplied it (100–10,000 ms; for `quota_exhausted`, the unclamped time until the quota rolls) |
 | `user_message` | A default message for the end user; None when released |
 
@@ -189,7 +190,12 @@ are announced, and removing a value is a breaking change. `admission_wait`,
 at capacity (`capacity_limited` is true). `quota_exhausted` means the project's daily request
 cap or monthly spend cap is used up: **don't retry before `retry_after_ms`**, which is the time
 until midnight Pacific or the 1st of the month, can be hours or days, and is the one hint that
-isn't clamped to 10 s; `retryable` is false for it. `auth`, `timeout`, `unavailable` (a provider 5xx, 429 or
+isn't clamped to 10 s; `retryable` is false for it. `guard_unreachable` means the SDK's remote mode (`connect(url)`, for a runtime that holds
+no provider key or database credentials) couldn't reach the guard service: the content is withheld
+and the result is retryable (see `docs/m7-10-guard-service.md`). `provider_degraded` means the provider has
+stopped answering and the platform fails checks at once while it probes (see
+`docs/m7-11-degraded-mode.md`); it is retryable after `retry_after_ms`, and no guard point lets
+content through meanwhile. `auth`, `timeout`, `unavailable` (a provider 5xx, 429 or
 connection error) and `other` are failures of the decision call. `contract_violation` means
 the model answered but answers the decision rests on were unusable.
 
@@ -199,11 +205,18 @@ non-retryable result. The retry is a new check, whose request id is the first ch
 one the engine used) plus `-retry`, and its result's `retry_of` names the first check. The content is withheld on every non-`allow`
 result, retried or not.
 
-**Provider refusals are final.** A block with reason `provider_safety` means the model
+**Provider refusals are final.** A verdict with reason `provider_safety` means the model
 provider's own safety filter refused the content. It is never retryable, and its message is
 neutral ("This request can't be processed"), never "temporarily unavailable" and never a
 policy message. The provider's filter runs before our rules, can change without notice, and
-can't be configured by tenants.
+can't be configured by tenants. It is a block, except at a guard point where the tenant has an
+enforce rule that may only escalate (healthcare, responsible AI, energy and finance, at
+`input`; insurance, at `input` and `tool_result`, where a refused third-party tool result goes
+to a person, held either way): there it is an **escalate** with the same
+reason, so a person sees what the provider would not judge. The content is withheld either way.
+The cost: at such a guard point a refused jailbreak goes to a person instead of being blocked. It
+is capped (20 per tenant and guard point in 15 minutes, provisional); past the cap, or with no
+escalation route, it is a block as before. See `docs/m7-08-refusal-escalation.md`.
 
 **Context must pass a guard point first.** The floor judges the content in the light of its
 context and **doesn't re-judge the context**. User turns are checked at `input` and tool

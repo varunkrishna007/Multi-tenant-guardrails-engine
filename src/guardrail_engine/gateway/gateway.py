@@ -86,10 +86,32 @@ For each check it applies, in order:
    open auth breaker) and ``capacity_limited`` (the gateway refused for lack of capacity),
    both from the gateway's own state only, and each check's ``in_flight_at_start``.
 
+7. **Provider-health breaker, per key** (M7-11). When the provider itself stops answering, a
+   check that waits out its whole budget for nothing is worse than one that fails at once and
+   says why. The breaker opens for a key after ``degraded_consecutive`` (5) calls in a row that
+   timed out or came back ``unavailable``, or when more than half of the last
+   ``degraded_window_calls`` (20) calls, all of them within ``degraded_window_s`` (30 s), did.
+   Only calls that were sent count. Not counted: a 429, a refusal for capacity, an auth failure
+   (the auth breaker has its own), an answer the engine couldn't use, and a timeout of a call
+   that didn't run its whole attempt deadline (a smaller budget of the check's own cut it, which a
+   healthy call can hit). The failures must come from two tenants, unless only one tenant called
+   the key within the window. While it is open, checks get
+   ``Failed(unavailable, reason="provider_degraded")`` at once, with no queue and no provider
+   call, marked ``degraded`` on the :class:`TimedDecision` with a ``retry_after_ms`` to the
+   next probe. The first probe is allowed 5 s after it opens;
+   each probe that fails doubles the wait, up to 60 s (the auth breaker's schedule). One check
+   is the probe (never retried, never cut early); a probe the provider answers closes the
+   breaker. The breaker is **per process**, like the auth breaker: n replicas each learn the
+   outage alone. A platform operator can also hold the provider degraded for the whole gateway
+   (:meth:`DecisionGateway.force_degraded`) until the operator lifts it. The default for a
+   degraded check is the one a failed call always had: every rule by its fail mode, which at the
+   floor is a block (B1). No guard point falls back to allow.
+
 Before any of that, the **orphan cap**: once ``max_orphans`` (32) abandoned calls are still
 running, checks fail fast with ``Failed(unavailable, reason="orphan_cap")``, with no model
 call and no retry, until fewer than half the cap are left. Reaching the cap raises one page.
-The order of the fast failures is: orphan cap, then the auth breaker, then admission.
+The order of the fast failures is: orphan cap, then the auth breaker, then the provider-health
+breaker, then admission.
 
 **Alerts and metering never run on the request path.** The gateway decides synchronously
 (the breaker opens, the throttle counts) and puts the resulting sink calls on a bounded
@@ -144,7 +166,7 @@ import threading
 import time
 from collections import deque
 from collections.abc import Awaitable, Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
@@ -168,6 +190,8 @@ from guardrail_engine.gateway.sinks import (
     ALERT_KEY_SATURATED_BY_ORPHANS,
     ALERT_MONTHLY_SPEND,
     ALERT_ORPHAN_CAP,
+    ALERT_PROVIDER_DEGRADED,
+    ALERT_PROVIDER_RECOVERED,
     ALERT_TENANT_DAILY_QUOTA,
     ALERT_TENANT_QUOTA,
     ALERT_TOKEN_RATE_FAIL_FAST,
@@ -286,6 +310,13 @@ DEFAULT_CANCEL_GRACE_S = 0.010
 DEFAULT_PROBE_INITIAL_DELAY_S = 5.0
 DEFAULT_PROBE_MAX_DELAY_S = 60.0
 DEFAULT_WARNING_INTERVAL_S = 60.0
+DEFAULT_DEGRADED_CONSECUTIVE = 5
+"""M7-11: calls in a row that timed out or were unavailable before the provider-health breaker
+opens. A provisional platform setting."""
+DEFAULT_DEGRADED_WINDOW_CALLS = 20
+"""M7-11: the breaker also opens when more than half of this many most recent calls failed, if
+all of them were within ``degraded_window_s``. Provisional."""
+DEFAULT_DEGRADED_WINDOW_S = 30.0
 DEFAULT_MAX_ORPHANS = 32
 DEFAULT_SINK_QUEUE_SIZE = 1024
 DEFAULT_CLOSE_TIMEOUT_S = 1.0
@@ -298,6 +329,10 @@ It rises to 8 only if the same-window rerun passes the flat test at k = 8. A set
 DEFAULT_MAX_QUEUED_PER_KEY = 64
 """M1-04 admission control: calls waiting for a slot on one key."""
 REASON_ORPHAN_CAP = "orphan_cap"
+REASON_PROVIDER_DEGRADED = "provider_degraded"
+"""M7-11: the gateway failed the check at once because the provider-health breaker is open (or
+an operator holds the provider degraded). Not a capacity reason: the call would have been made
+if the provider were answering."""
 QUOTA_REASON_CAUSES = frozenset({CAUSE_DAILY_REQUESTS, CAUSE_MONTHLY_SPEND}) | DAILY_CAUSES
 """The causes of a refusal whose reason is ``quota_exhausted`` (the wait is until a counter
 rolls); every other cause (the bucket, a tenant's minute share, a consumer's allowance) is
@@ -350,6 +385,7 @@ FINITE_SETTINGS = (
     "cancel_grace_s",
     "probe_initial_delay_s",
     "probe_max_delay_s",
+    "degraded_window_s",
     "warning_interval_s",
     "close_timeout_s",
 )
@@ -474,6 +510,14 @@ class GatewayConfig:
     """Wait between a breaker opening and its first probe."""
     probe_max_delay_s: float = DEFAULT_PROBE_MAX_DELAY_S
     """Cap on the wait between probes; the wait doubles after each probe that fails."""
+    degraded_consecutive: int = DEFAULT_DEGRADED_CONSECUTIVE
+    """M7-11: calls in a row that timed out or were unavailable before the provider-health
+    breaker opens for a key. 0 turns this trigger off."""
+    degraded_window_calls: int = DEFAULT_DEGRADED_WINDOW_CALLS
+    """M7-11: the breaker opens when more than half of the last this-many calls failed and all
+    of them were within ``degraded_window_s``. 0 turns this trigger off."""
+    degraded_window_s: float = DEFAULT_DEGRADED_WINDOW_S
+    """M7-11: how recent those calls must be."""
     warning_interval_s: float = DEFAULT_WARNING_INTERVAL_S
     """A warning of one kind is raised at most once per this interval per tenant and guard
     point. 0 raises every one."""
@@ -510,6 +554,10 @@ class GatewayConfig:
         ):
             if not getattr(self, name) >= 1:
                 raise ValueError(f"{name} must be >= 1, got {getattr(self, name)}")
+        for name in ("degraded_consecutive", "degraded_window_calls"):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                raise ValueError(f"{name} must be a whole number >= 0, got {value!r}")
         for name in FINITE_SETTINGS:
             value = getattr(self, name)
             if value is not None and not (isinstance(value, int | float) and -_INF < value < _INF):
@@ -518,6 +566,7 @@ class GatewayConfig:
             "budget_cap_s": self.budget_cap_s,
             "input_budget_cap_s": self.input_budget_cap_s,
             "probe_initial_delay_s": self.probe_initial_delay_s,
+            "degraded_window_s": self.degraded_window_s,
         }
         if self.default_budget_s is not None:
             positive["default_budget_s"] = self.default_budget_s
@@ -795,6 +844,12 @@ class TimedDecision:
     next probe. Computed by the gateway from its own state only, never from anything the
     provider sent. None for everything it can't time (``timeout``, ``unavailable``,
     ``other``...), and when the prediction is infinite (orphans hold every slot)."""
+    degraded: bool = False
+    """M7-11: the check failed because the provider is degraded: the gateway's provider-health
+    breaker was open (or an operator holds the provider degraded) and refused it at once, or it
+    was the probe and failed. Set from where the refusal was made, never from a provider's reason
+    string. ``retry_after_ms`` is then the time to the next probe (None while an operator holds
+    it)."""
     capacity_limited: bool = False
     """R8: the gateway itself refused the check for lack of capacity (``admission_wait``,
     ``admission_queue_full``, ``orphan_cap``; ``token_rate`` with M3-10). Set from where the
@@ -806,6 +861,16 @@ class _Outcome:
     result: DecisionResult
     retry_after_s: float | None = None
     capacity_limited: bool = False
+    degraded: bool = False
+
+
+def _degraded_failure(key_id: str) -> Failed:
+    """M7-11: what a check gets, at once, while the provider is degraded."""
+    return Failed(
+        kind=FailureKind.UNAVAILABLE,
+        message=f"the provider is degraded for key {key_id!r}; model not called",
+        reason=REASON_PROVIDER_DEGRADED,
+    )
 
 
 def _retry_after_ms(seconds: float | None, *, clamp_max: bool = True) -> int | None:
@@ -914,6 +979,29 @@ class _OpenBreaker:
     reason: str | None
 
 
+@dataclass
+class _Degraded:
+    """M7-11: an open provider-health breaker for one key."""
+
+    next_probe_at: float
+    delay: float
+    """The wait that led to ``next_probe_at``; the next one is twice this, capped."""
+    cause: str
+    """``consecutive_failures`` or ``failure_rate``."""
+
+
+@dataclass
+class _Health:
+    """The recent provider calls on one key: when each was made and whether it failed."""
+
+    calls: deque[tuple[float, bool, str]]
+    """``(when, failed, tenant)`` of the last calls."""
+    consecutive: int = 0
+    run_tenants: set[str] = field(default_factory=set)
+    """The tenants of the failures in the current run, kept to two: all that is asked is
+    whether the run came from more than one."""
+
+
 USAGE_CHECK = USAGE_PRODUCTION
 """The usage class of production traffic (``"check"``): metered under the plain guard point
 name. One concept with M3-08's production consumer."""
@@ -943,8 +1031,15 @@ class _Check:
     """How long the check may wait for admission, summed over its attempts (R6.3)."""
     attempt_deadline: float | None = None
     """How long the first call may run once sent (R6.3 after U7); None: to the budget."""
+    full_attempt_s: float = 0.0
+    """The attempt deadline before any shortening by ``max_budget_s``: what a healthy call is
+    given at the least. A timeout counts against the provider's health only if the call ran this
+    long (M7-11)."""
     input_tokens: int = 0
     probe: bool = False
+    degraded_probe: bool = False
+    """M7-11: the probe is the provider-health breaker's (``probe`` is set too, for the queue,
+    the retry and the early cut, which treat every probe alike)."""
     usage_class: str = USAGE_CHECK
     timing: _Timing = field(default_factory=_Timing)
     queue_deadline: float = float("inf")
@@ -1069,6 +1164,9 @@ class DecisionGateway:
             )
         self._keys: dict[str, _KeyState] = {}
         self._open: dict[str, _OpenBreaker] = {}
+        self._degraded: dict[str, _Degraded] = {}
+        self._health: dict[str, _Health] = {}
+        self._forced_degraded = False
         self._throttles: dict[tuple[str, ...], _Throttle] = {}
         # Strong references: the event loop only holds weak ones, so a task nobody
         # references can be garbage-collected while it is still running.
@@ -1113,6 +1211,17 @@ class DecisionGateway:
         if isinstance(self._charger, QuotaLimiter):
             return self._charger.allowances if self._charger.allowances.enabled else None
         return self._charger
+
+    def consumer_admission_wait(self, consumer: str, tokens: int) -> float:
+        """Seconds until the limiter would admit a call of ``tokens`` from a non-production
+        ``consumer`` (its token and requests-a-minute allowances), by this gateway's own clock:
+        0.0 if it would be admitted now, and for production and without ``token_rate``. It takes
+        nothing, so a harness can wait for exactly the time the limiter asks instead of being
+        refused ``token_rate`` and losing the check."""
+        allowances = self.consumer_allowances
+        if allowances is None:
+            return 0.0
+        return allowances.admission_wait(consumer, tokens, now=self._clock())
 
     @property
     def dropped_events(self) -> int:
@@ -1199,6 +1308,12 @@ class DecisionGateway:
     async def __aexit__(self, *exc: object) -> None:
         await self.aclose()
 
+    def wrap_model(self, wrapper: Callable[[DecisionModel], DecisionModel]) -> None:
+        """Replace the model with ``wrapper(model)``. Every provider send goes through the
+        gateway's model (a first call, a retry, a breaker probe), so a wrapper sees them all. For
+        the composition root, before the first check: the local runner's lifetime call cap."""
+        self._model = wrapper(self._model)
+
     @property
     def model_id(self) -> str:
         return self._model.model_id
@@ -1228,6 +1343,56 @@ class DecisionGateway:
     def breaker_open(self, key_id: str | None = None) -> bool:
         """Whether the auth breaker is open for ``key_id`` (default: the current key)."""
         return (self._key_id() if key_id is None else key_id) in self._open
+
+    def provider_degraded(self, key_id: str | None = None) -> bool:
+        """Whether checks on ``key_id`` (default: the current key) are being failed at once
+        because the provider is degraded: the provider-health breaker is open for the key, or
+        an operator holds the provider degraded (M7-11)."""
+        key = self._key_id() if key_id is None else key_id
+        return self._forced_degraded or key in self._degraded
+
+    @property
+    def degraded_forced(self) -> bool:
+        """Whether an operator is holding the provider degraded for the whole gateway."""
+        return self._forced_degraded
+
+    def degraded_status(self) -> dict[str, Any]:
+        """What an operator sees: whether the breaker is open for the current key, how it
+        opened, and when the next probe is allowed (seconds from now, None while forced)."""
+        key = self._key_id()
+        state = self._degraded.get(key)
+        now = self._clock()
+        return {
+            "degraded": self.provider_degraded(key),
+            "forced": self._forced_degraded,
+            "cause": "operator" if self._forced_degraded else state.cause if state else None,
+            "next_probe_in_s": (
+                None
+                if state is None or self._forced_degraded
+                else max(0.0, state.next_probe_at - now)
+            ),
+        }
+
+    def force_degraded(self, degraded: bool) -> bool:
+        """An operator holds the provider degraded (``True``) or lifts it (``False``), for the
+        whole gateway (M7-11). Held, every check fails at once as ``provider_degraded`` with no
+        probe; lifted, the provider-health breakers of every key are cleared too. Returns
+        whether anything changed. The caller records the step (class A)."""
+        if degraded:
+            changed = not self._forced_degraded
+            self._forced_degraded = True
+            if changed:
+                self._raise_degraded(None, "operator")
+                self._wake_all()
+            return changed
+        changed = self._forced_degraded or bool(self._degraded)
+        self._forced_degraded = False
+        for key in list(self._degraded):
+            self._close_degraded(key, "operator")
+        if changed:
+            self._health.clear()
+            self._emit_recovered("operator")
+        return changed
 
     async def decide(
         self,
@@ -1266,6 +1431,7 @@ class DecisionGateway:
         on_admitted: Callable[[], None] | None = None,
         group: CheckGroup | None = None,
         group_index: int = 0,
+        max_budget_s: float | None = None,
     ) -> TimedDecision:
         """:meth:`decide`, plus where the check's time went: queue wait and provider
         latency, each summed over its attempts. The same timing goes to a meter that
@@ -1291,12 +1457,17 @@ class DecisionGateway:
 
         ``tier`` is the tenant's directory tier (``standard``, ``regulated``, ``dedicated``),
         which picks its share and its weight in fair scheduling (M3-07); None is the
-        configured default tier. It is ignored without ``config.quotas``."""
+        configured default tier. It is ignored without ``config.quotas``.
+
+        ``max_budget_s`` shortens the check's total budget to at most this many seconds (M7-03:
+        a copy that already waited for another call gets only what is left of its guard
+        point's cap). Its queue allowance and attempt deadline are cut to fit; None leaves the
+        budget as it is, and a value of 0 or less ends the check at once as a timeout."""
         usage_class = resolve_usage_class(usage_class)
         timing = _Timing(on_admitted=on_admitted, group=group, group_index=group_index)
         try:
             outcome = await self._decide(
-                tenant_id, guard_point, input, questions, timing, tier, usage_class
+                tenant_id, guard_point, input, questions, timing, tier, usage_class, max_budget_s
             )
         except Exception as exc:
             logger.exception("decision gateway error")
@@ -1329,6 +1500,7 @@ class DecisionGateway:
                     and outcome.result.reason == REASON_QUOTA_EXHAUSTED
                 ),
             ),
+            degraded=outcome.degraded,
             capacity_limited=outcome.capacity_limited,
         )
 
@@ -1341,6 +1513,7 @@ class DecisionGateway:
         timing: _Timing,
         tier: str | None = None,
         usage_class: str = USAGE_CHECK,
+        max_budget_s: float | None = None,
     ) -> _Outcome:
         start = self._clock()
         input_tokens, question_count = estimate_tokens(input), len(questions)
@@ -1350,6 +1523,16 @@ class DecisionGateway:
         budget = self._config.budget_parts(
             guard_point, input_tokens=input_tokens, question_count=question_count
         )
+        full_attempt_s = budget.attempt_deadline_s
+        if max_budget_s is not None and max_budget_s < budget.total_s:
+            total = max(0.0, max_budget_s)
+            budget = replace(
+                budget,
+                total_s=total,
+                queue_wait_s=min(budget.queue_wait_s, max(0.0, total - budget.expected_p50_s)),
+                attempt_deadline_s=min(budget.attempt_deadline_s, total),
+                retry_window_s=max(0.0, total - budget.queue_wait_s - budget.attempt_deadline_s),
+            )
         check = _Check(
             tenant_id=tenant_id,
             guard_point=guard_point,
@@ -1360,6 +1543,7 @@ class DecisionGateway:
             ),
             queue_allowance=budget.queue_wait_s,
             attempt_deadline=budget.attempt_deadline_s,
+            full_attempt_s=full_attempt_s,
             input_tokens=input_tokens,
             timing=timing,
             usage_class=usage_class,
@@ -1429,11 +1613,45 @@ class DecisionGateway:
             breaker.next_probe_at = start + breaker.delay
             check.probe = True
 
+        degraded: _Degraded | None = None
+        previous_degraded_delay = 0.0
+        if breaker is None:
+            degraded = self._degraded.get(check.key_id)
+            if len(self._degraded) > (degraded is not None):
+                # Breakers of keys that have been replaced: nothing is sent on those any more.
+                self._degraded = {} if degraded is None else {check.key_id: degraded}
+            if self._forced_degraded:
+                return _Outcome(_degraded_failure(check.key_id), degraded=True)
+            if degraded is not None:
+                if start < degraded.next_probe_at:
+                    return _Outcome(
+                        _degraded_failure(check.key_id),
+                        retry_after_s=degraded.next_probe_at - start,
+                        degraded=True,
+                    )
+                # Claim the probe slot before awaiting, so concurrent checks keep failing fast.
+                previous_degraded_delay = degraded.delay
+                degraded.delay = min(degraded.delay * 2, self._config.probe_max_delay_s)
+                degraded.next_probe_at = start + degraded.delay
+                check.probe = check.degraded_probe = True
+
         # The first call is cut at its attempt deadline (R6.3 after U7), or at the end of the
         # budget if that comes first. A breaker probe is never retried, so it isn't cut early.
-        result, refused = await self._attempt(
-            check, input, questions, attempt_s=None if check.probe else check.attempt_deadline
-        )
+        try:
+            result, refused = await self._attempt(
+                check, input, questions, attempt_s=None if check.probe else check.attempt_deadline
+            )
+        except BaseException:
+            if (
+                check.degraded_probe
+                and degraded is not None
+                and self._degraded.get(check.key_id) is degraded
+            ):
+                # The caller cancelled the probe: the provider told us nothing, so the wait it
+                # doubled is given back, as when admission refuses the probe.
+                degraded.delay = previous_degraded_delay
+                degraded.next_probe_at = self._clock() + self._config.probe_initial_delay_s
+            raise
         if (
             refused
             and isinstance(result, Failed)
@@ -1447,6 +1665,16 @@ class DecisionGateway:
             assert breaker is not None
             breaker.delay = previous_delay
             breaker.next_probe_at = self._clock() + self._config.probe_initial_delay_s
+        if (
+            check.degraded_probe
+            and refused
+            and degraded is not None
+            and self._degraded.get(check.key_id) is degraded
+        ):
+            # Admission refused the provider probe: nothing was sent, so the provider
+            # learned nothing; allow another probe after the initial delay.
+            degraded.delay = previous_degraded_delay
+            degraded.next_probe_at = self._clock() + self._config.probe_initial_delay_s
         retryable = isinstance(result, Failed) and result.kind in RETRYABLE
         if retryable and not refused and not check.probe:
             # Never after an admission refusal: admission failures are not retried.
@@ -1471,6 +1699,8 @@ class DecisionGateway:
         elif check.probe and isinstance(result, Answered | SafetyBlocked):
             # The provider accepted the key. Any other failure says nothing about the key.
             self._open.pop(check.key_id, None)
+        if check.probe and isinstance(result, Answered | SafetyBlocked):
+            self._close_degraded(check.key_id, "probe")  # the provider is answering again
         return self._outcome_of(result, refused, check)
 
     def _outcome_of(self, result: DecisionResult, refused: bool, check: _Check) -> _Outcome:
@@ -1487,6 +1717,22 @@ class DecisionGateway:
             if breaker is None:
                 return _Outcome(result)
             return _Outcome(result, retry_after_s=breaker.next_probe_at - self._clock())
+        if (
+            refused
+            and result.kind is FailureKind.UNAVAILABLE
+            and result.reason == REASON_PROVIDER_DEGRADED
+            and self.provider_degraded(check.key_id)
+        ):
+            # Refused in the queue (or as a retry) once the provider-health breaker opened.
+            return _Outcome(result, retry_after_s=self._degraded_wait(check.key_id), degraded=True)
+        if (
+            check.degraded_probe
+            and not refused
+            and result.kind in (FailureKind.TIMEOUT, FailureKind.UNAVAILABLE)
+            and check.key_id in self._degraded
+        ):
+            # The probe failed: the provider is still down; the next probe is when to retry.
+            return _Outcome(result, retry_after_s=self._degraded_wait(check.key_id), degraded=True)
         if result.kind is FailureKind.RATE_LIMITED:
             # The provider refused (429), not the gateway: its own RetryInfo delay, passed
             # through clamped, or no hint. Never capacity_limited.
@@ -1580,6 +1826,7 @@ class DecisionGateway:
                 self._release(timer)
             check.timing.provider_s += self._clock() - sent_at
         result = self._outcome(call, timer, finished, check, cut_by_attempt)
+        self._note_provider_call(check, result, self._clock() - sent_at)
         if isinstance(result, Answered) and result.usage is not None:
             self._settle(check, result.usage.total_input_tokens)
         else:
@@ -1798,8 +2045,12 @@ class DecisionGateway:
 
     def _breaker_refusal(self, check: _Check) -> Failed | None:
         breaker = self._open.get(check.key_id)
-        if breaker is None or check.probe:
+        if check.probe:
             return None
+        if breaker is None:
+            # Not the auth breaker: the provider-health breaker (M7-11), for a retry or a call
+            # still queued when it opened.
+            return _degraded_failure(check.key_id) if self.provider_degraded(check.key_id) else None
         return Failed(
             kind=FailureKind.AUTH,
             message=f"auth circuit breaker is open for key {check.key_id!r}; model not called",
@@ -2801,6 +3052,136 @@ class DecisionGateway:
                 guard_point="",
             )
         )
+
+    # ------------------------------------------------------------------ provider health (M7-11)
+
+    def _degraded_wait(self, key_id: str) -> float | None:
+        """Seconds to the next probe, None while an operator holds the provider degraded."""
+        state = self._degraded.get(key_id)
+        if self._forced_degraded or state is None:
+            return None
+        return max(0.0, state.next_probe_at - self._clock())
+
+    def _note_provider_call(self, check: _Check, result: DecisionResult, ran_s: float) -> None:
+        """Feed one provider call's outcome to the key's health window; open the breaker when
+        the window says the provider has stopped answering. Probes and calls made while a
+        breaker is open decide nothing here: the probe closes it, nothing else does."""
+        cfg = self._config
+        if cfg.degraded_consecutive == 0 and cfg.degraded_window_calls == 0:
+            return
+        key = check.key_id
+        if check.probe or key in self._degraded or key in self._open or self._forced_degraded:
+            return
+        if isinstance(result, Answered | SafetyBlocked):
+            failed = False
+        elif isinstance(result, Failed) and result.kind is FailureKind.UNAVAILABLE:
+            failed = True
+        elif (
+            isinstance(result, Failed)
+            and result.kind is FailureKind.TIMEOUT
+            and ran_s >= check.full_attempt_s - 1e-6
+        ):
+            # It ran the whole attempt deadline (expected p50 plus margin) and the provider still
+            # didn't answer. A call cut by the check's own smaller budget (a fixed override, a
+            # waiter's rest of the cap) says nothing: a healthy call can be slower than its p50.
+            failed = True
+        else:
+            return  # a 429, an auth failure, a call that was cut short, anything unclassified
+        try:
+            if key != self._key_id():
+                return  # a call on a replaced key says nothing about the current one
+        except Exception:
+            return
+        if len(self._health) > (key in self._health):
+            self._health = {k: v for k, v in self._health.items() if k == key}
+        now = self._clock()
+        health = self._health.get(key)
+        if health is None:
+            size = max(cfg.degraded_window_calls, 1)
+            health = self._health[key] = _Health(deque(maxlen=size))
+        health.calls.append((now, failed, check.tenant_id))
+        health.consecutive = health.consecutive + 1 if failed else 0
+        if failed:
+            if len(health.run_tenants) < 2:
+                health.run_tenants.add(check.tenant_id)
+        else:
+            health.run_tenants.clear()
+        # One tenant's content can make the provider fail for it alone, so a trigger needs
+        # failures from at least two tenants, unless only one tenant called the key within the
+        # window (a single-tenant or quiet key then trips on its own failures).
+        in_window = [c for c in health.calls if c[0] > now - cfg.degraded_window_s]
+        alone = len({tenant for _, _, tenant in in_window}) <= 1
+        cause: str | None = None
+        if (
+            cfg.degraded_consecutive
+            and health.consecutive >= cfg.degraded_consecutive
+            and (alone or len(health.run_tenants) >= 2)
+        ):
+            cause = "consecutive_failures"
+        elif cfg.degraded_window_calls and len(in_window) >= cfg.degraded_window_calls:
+            bad = [tenant for _, was_bad, tenant in in_window if was_bad]
+            if len(bad) * 2 > len(in_window) and (alone or len(set(bad)) >= 2):
+                cause = "failure_rate"
+        if cause is not None:
+            delay = cfg.probe_initial_delay_s
+            self._degraded[key] = _Degraded(next_probe_at=now + delay, delay=delay, cause=cause)
+            health.calls.clear()
+            health.consecutive = 0
+            health.run_tenants.clear()
+            self._raise_degraded(check, cause)
+            self._wake_all()
+
+    def _raise_degraded(self, check: _Check | None, cause: str) -> None:
+        key = check.key_id if check is not None else self._safe_key_id()
+        logger.warning("provider degraded for key %r (%s); checks fail at once", key, cause)
+        self._emit(
+            Alert(
+                severity=AlertSeverity.PAGE,
+                kind=ALERT_PROVIDER_DEGRADED,
+                message=(
+                    f"the decision provider is not answering on key {key!r} ({cause}); every "
+                    "check on it fails at once as provider_degraded (floor rules block) until a "
+                    "probe is answered or an operator lifts it"
+                ),
+                key_id=key,
+                tenant_id=check.tenant_id if check is not None else "",
+                guard_point=check.guard_point if check is not None else "",
+                reason=cause,
+            )
+        )
+
+    def _safe_key_id(self) -> str:
+        try:
+            return self._key_id()
+        except Exception:
+            return DEFAULT_KEY_ID
+
+    def _close_degraded(self, key_id: str, cause: str) -> None:
+        """The provider answers again on ``key_id`` (a probe), or an operator lifted the hold."""
+        if self._degraded.pop(key_id, None) is None:
+            return
+        self._health.pop(key_id, None)
+        logger.info("provider answering again on key %r (%s); checks call it again", key_id, cause)
+        if cause != "operator":  # the operator's lift raises one notice for all keys
+            self._emit_recovered(cause, key_id)
+
+    def _emit_recovered(self, cause: str, key_id: str | None = None) -> None:
+        self._emit(
+            Alert(
+                severity=AlertSeverity.WARNING,
+                kind=ALERT_PROVIDER_RECOVERED,
+                message="the decision provider answers again; checks call it again",
+                key_id=key_id if key_id is not None else self._safe_key_id(),
+                tenant_id="",
+                guard_point="",
+                reason=cause,
+            )
+        )
+
+    def _wake_all(self) -> None:
+        """Let every queued call re-check whether the provider is degraded."""
+        for key_id, state in list(self._keys.items()):
+            self._queue_moved(key_id, state)
 
     def _on_auth_failure(self, result: Failed, check: _Check) -> None:
         try:

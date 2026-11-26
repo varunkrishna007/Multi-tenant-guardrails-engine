@@ -84,6 +84,19 @@ class DecisionRecordSink(Protocol):
     async def append_many(self, records: Sequence[AuditRecord]) -> None: ...
 
 
+class KeyedDecisionRecordSink(DecisionRecordSink, Protocol):
+    """A sink that can keep a record **once**, by a key the caller chose (M7-04).
+
+    The writer's spill replay uses it: a record is replayed under the id it was spilled with,
+    so replaying it again after a crash (written, but not yet marked done) adds no second row.
+    Keys are per tenant."""
+
+    async def append_keyed(self, records: Sequence[AuditRecord], keys: Sequence[str]) -> None:
+        """Like ``append_many`` for one tenant's records, each with its key; a record whose key
+        the tenant already has is skipped."""
+        ...
+
+
 class DecisionRecordReader(Protocol):
     async def page(
         self,
@@ -113,11 +126,19 @@ class InMemoryDecisionRecords:
     def __init__(self) -> None:
         self._rows: list[tuple[int, AuditRecord]] = []
         self._next_id = 1
+        self._keys: set[tuple[str | None, str]] = set()
 
     async def append_many(self, records: Sequence[AuditRecord]) -> None:
         for record in records:
             self._rows.append((self._next_id, record))
             self._next_id += 1
+
+    async def append_keyed(self, records: Sequence[AuditRecord], keys: Sequence[str]) -> None:
+        for record, key in zip(records, keys, strict=True):
+            if (record.tenant_id, key) in self._keys:
+                continue
+            self._keys.add((record.tenant_id, key))
+            await self.append_many([record])
 
     def all(self) -> list[AuditRecord]:
         return [r for _, r in self._rows]

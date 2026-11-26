@@ -22,6 +22,7 @@ BACKLOG_PAIRS = {
     (Decision.ALLOW, Reason.MODEL_FAILURE),  # only with an open floor (added later)
     (Decision.ESCALATE, Reason.POLICY),
     (Decision.ESCALATE, Reason.DETERMINISTIC),  # M3-01: a deterministic escalate
+    (Decision.ESCALATE, Reason.PROVIDER_SAFETY),  # M7-08: a refusal where a rule may only escalate
     *(
         (Decision.BLOCK, r)
         for r in (

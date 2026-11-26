@@ -62,6 +62,7 @@ def check_attributes(verdict: Verdict) -> dict[str, AttributeValue]:
             "failure_kind": verdict.failure_kind,
             "failure_reason": verdict.failure_reason,
             "capacity_limited": verdict.capacity_limited,
+            "degraded": verdict.degraded or None,
             "retry_after_ms": verdict.retry_after_ms,
             "policy_source": verdict.policy_source,
             "fired": tuple(f.key for f in verdict.fired),

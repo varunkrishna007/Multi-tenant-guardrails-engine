@@ -108,6 +108,11 @@ from guardrail_engine.admin.nightly import (
     NotQuarantinedError,
     QuarantineUnavailableError,
 )
+from guardrail_engine.admin.provider_health import (
+    ProviderHealthService,
+    ProviderHoldBodyError,
+    ProviderHoldUnavailableError,
+)
 from guardrail_engine.admin.publish import (
     FloorBelowMinimumError,
     PublishResult,
@@ -415,6 +420,7 @@ def create_admin_app(
     escalations: EscalationService | None = None,
     approvals: ApprovalService | None = None,
     tiers: TierService | None = None,
+    provider_health: ProviderHealthService | None = None,
 ) -> FastAPI:
     app = FastAPI(title="Guardrail Admin API", docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -619,6 +625,10 @@ def create_admin_app(
             return _error(404, "nightly_result_not_found")
         if isinstance(exc, NotQuarantinedError):
             return _error(404, "not_quarantined")
+        if isinstance(exc, ProviderHoldUnavailableError):
+            return _error(503, "unavailable", "the change could not be recorded")
+        if isinstance(exc, ProviderHoldBodyError):
+            return _error(422, "invalid_body", str(exc))
         if isinstance(exc, QuarantineUnavailableError):
             return _error(503, "unavailable", "the clear could not be recorded")
         if isinstance(exc, NightlyQueryError):
@@ -912,6 +922,25 @@ def create_admin_app(
             return JSONResponse(
                 await nightly.clear(decision, principal, config, mode, reason_of(doc)),
                 headers=_HEADERS,
+            )
+
+    if provider_health is not None:
+
+        @app.get("/v1/platform/provider/degraded")
+        @guarded
+        async def provider_degraded_status(request: Request) -> Response:
+            _, decision = await platform_call(request, "GET", "/v1/platform/provider/degraded")
+            return JSONResponse(await provider_health.status(decision), headers=_HEADERS)
+
+        @app.put("/v1/platform/provider/degraded")
+        @guarded
+        async def provider_degraded_hold(request: Request) -> Response:
+            principal, decision = await platform_call(
+                request, "PUT", "/v1/platform/provider/degraded"
+            )
+            doc = await json_body(request)
+            return JSONResponse(
+                await provider_health.set_hold(decision, principal, doc), headers=_HEADERS
             )
 
     @app.get("/v1/platform/floors")

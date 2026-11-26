@@ -66,7 +66,7 @@ MAX_BODY_BYTES = 64_000
 MAX_VERSION = 1_000_000
 ACTIONS = (
     "release_proposed", "release_approved", "released", "halt", "resume", "repin", "promote",
-    "raise_minimum",
+    "raise_minimum", "provider_degraded_hold", "provider_degraded_lift",
 )  # fmt: skip
 _HASH = re.compile(r"sha256:[0-9a-f]{64}")
 

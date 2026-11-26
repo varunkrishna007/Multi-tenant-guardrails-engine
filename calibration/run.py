@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import functools
 import hashlib
 import json
 import math
@@ -314,7 +315,29 @@ def redacted(row: Mapping[str, Any]) -> Any:
     from guardrail_engine.guard.redaction import redact_request
 
     return redact_request(
-        content=row["content"], conversation=context_items(row), tools=tool_infos(row)
+        content=row["content"],
+        conversation=context_items(row),
+        tools=tool_infos(row),
+        secrets=secret_detector(),  # M7-01: a known-format credential becomes [SECRET]
+    )
+
+
+@functools.cache
+def secret_detector() -> Any:
+    """The engine's known-format credential detector (M7-01), on the default regex engine."""
+    from guardrail_engine.deterministic import SecretDetector, default_regex_engine
+
+    return SecretDetector(default_regex_engine())
+
+
+def secret_blocked(row: Mapping[str, Any]) -> bool:
+    """Whether the Guard Service blocks the row before any model call (M7-01): its content
+    holds a known-format credential at a guard point of ``p__secret``. The engine path sends
+    nothing for such a row; the direct harness has no such check."""
+    from guardrail_engine.deterministic.secret_formats import SECRET_BLOCK_GUARD_POINTS
+
+    return row["guard_point"] in SECRET_BLOCK_GUARD_POINTS and bool(
+        secret_detector().count(row["content"])
     )
 
 
@@ -475,6 +498,20 @@ class Runner:
     ) -> dict[str, Any]:
         if live_exclusion(row) is not None:  # never reached: rows are filtered on load
             raise StopRun(f"refusing to send excluded row {row.get('id')}")
+        if secret_blocked(row):
+            # M7-01: the Guard Service blocks this row before any model call, so the harness
+            # sends nothing for it either; the draw is recorded as deterministic, with no score.
+            record = {
+                "type": "call", "phase": phase, "example_id": row["id"],
+                "guard_point": row["guard_point"], "draw": draw, "rule": rule,
+                "questions": sorted(questions), "nonce": nonce,
+                "started_at": datetime.now(UTC).isoformat(timespec="milliseconds"),
+                "wall_ms": 0.0, "pii_redacted": {}, "outcome": "deterministic", "kind": None,
+                "message": None, "probabilities": {}, "problems": {},
+                "usage_input_tokens": None,
+            }  # fmt: skip
+            self.write(record)
+            return record
         text = render(row, nonce, self.setup.max_content_tokens[row["guard_point"]])
         tokens = (estimate_tokens(text) + estimate_question_tokens(questions)) * 1.25
         while (wait := self.limiter.delay(tokens, self.clock())) > 0:
@@ -507,8 +544,9 @@ class Runner:
 
 
 def done_keys(records: Iterable[Mapping[str, Any]]) -> set[tuple[str, str, int, str | None]]:
+    done = ("answered", "deterministic")
     return {(r["phase"], r["example_id"], r["draw"], r["rule"]) for r in records
-            if r.get("type") == "call" and r["outcome"] == "answered"}  # fmt: skip
+            if r.get("type") == "call" and r["outcome"] in done}  # fmt: skip
 
 
 def known_nonces(records: Iterable[Mapping[str, Any]]) -> dict[tuple[str, int], str]:
@@ -568,7 +606,7 @@ async def run_all(
         sample: list[Mapping[str, Any]] = []
         log("  validation: independence phase skipped (floor@2 only)")
     else:
-        sample = independence_sample(rows)
+        sample = independence_sample([r for r in rows if not secret_blocked(r)])
     for row in sample:
         nonce = nonce_for(row, 1)
         questions = qs[row["guard_point"]]
@@ -1043,7 +1081,7 @@ def incomplete_examples(records: Sequence[Mapping[str, Any]], draws: int) -> dic
     answered: dict[str, set[int]] = {}
     seen: set[str] = set()
     for r in records:
-        if r.get("type") == "call" and r["phase"] == "main":
+        if r.get("type") == "call" and r["phase"] == "main" and r["outcome"] != "deterministic":
             seen.add(r["example_id"])
             if r["outcome"] == "answered":
                 answered.setdefault(r["example_id"], set()).add(r["draw"])
@@ -1190,7 +1228,7 @@ def _relabel_section(
     draws: Mapping[str, Mapping[str, list[float]]],
     relabelled: Relabelled,
 ) -> None:
-    """R28: the labels changed after the run. Both readings of the recorded answers, as run
+    """The labels changed after the run. Both readings of the recorded answers, as run
     and relabelled: nothing is re-sent, only the labels the answers are judged against change."""
     new_rows, new_setup = relabelled.rows, relabelled.setup
     old_by_id = {r["id"]: r for r in rows}
@@ -1590,6 +1628,10 @@ async def run(args: argparse.Namespace) -> int:
 
 
 def plan_calls(rows: Sequence[Mapping[str, Any]], setup: Setup, draws: int) -> dict[str, Any]:
+    """The calls a run makes. A row the Guard Service blocks before any model call (a
+    known-format credential, M7-01) is never sent, so it is not counted."""
+    blocked = sum(secret_blocked(r) for r in rows)
+    rows = [r for r in rows if not secret_blocked(r)]
     sample = [] if setup.validation else independence_sample(rows)
     indep = sum(1 + len(setup.questions[r["guard_point"]]) for r in sample)
     dropped = [render_full(r, fresh_nonce(r), setup.max_content_tokens[r["guard_point"]])
@@ -1598,6 +1640,7 @@ def plan_calls(rows: Sequence[Mapping[str, Any]], setup: Setup, draws: int) -> d
             "max_content_tokens": sorted(set(setup.max_content_tokens.values())),
             "rows_dropping_context": sum(d > 0 for d in dropped),
             "context_items_dropped": sum(dropped),
+            "secret_blocked_rows": blocked,
             "indep": indep, "main": len(rows) * draws,
             "total": indep + len(rows) * draws}  # fmt: skip
 

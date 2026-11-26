@@ -13,8 +13,9 @@ when it is registered or edited** (R7.3(b) condition).
   ``POST /tools/{name}/review`` is guardrail_reviewer and approves or rejects a **held** entry. The
   submitter can't approve their own entry.
 * **What is screened.** The description, as content at guard point ``tool_result``, against the
-  floor's ``p__inj_direct``, ``p__inj_indirect`` and ``p__ai_addressed`` of the **newest floor
-  version in the catalog**, with the floor's own thresholds, through the same pipeline as the test
+  floor's ``p__inj_direct``, ``p__inj_indirect`` and ``p__ai_addressed`` of the **newest
+  released floor version in the catalog** (M7-05: a floor staged in the catalog but not released
+  is not used), with the floor's own thresholds, through the same pipeline as the test
   endpoint (redaction, render, one decision call, fusion). The three questions are taken from the
   catalog, not from the tenant's bundle, so a tenant's overrides can't loosen them.
 * **When.** Synchronously inside the ``PUT``, on create and when the description changes. An
@@ -428,7 +429,7 @@ class ToolScreener:
         self._settings = settings
 
     def policy(self, profile: TenantProfile) -> GuardPointPolicy | None:
-        versions = self._catalog.floor_versions()
+        versions = [v for v in self._catalog.floor_versions() if self._catalog.is_released(v)]
         floor = self._catalog.floor(max(versions)) if versions else None
         if floor is None:
             return None

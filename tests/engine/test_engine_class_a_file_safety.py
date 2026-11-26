@@ -155,6 +155,10 @@ def test_a_file_with_another_hard_link_is_refused(audit_dir):
     assert refused_at_startup(path) == "the file has other hard links"
 
 
+@pytest.mark.skipif(
+    os.getuid() == 0,
+    reason="the directory check accepts a root-owned directory, so as root this case can't arise",
+)
 def test_a_directory_owned_by_another_user_is_refused(audit_dir, monkeypatch):
     monkeypatch.setattr(bootstrap.os, "geteuid", lambda: os.getuid() + 4242)
     assert refused_at_startup(audit_dir / NAME) == "its directory is owned by another user"

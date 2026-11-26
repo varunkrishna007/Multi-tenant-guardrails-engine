@@ -156,6 +156,9 @@ MIGRATIONS = (
     "046_gemini_projects.sql",
     "047_stored_content.sql",
     "051_nightly_redteam.sql",
+    "054_decision_record_keys.sql",
+    "055_escalation_candidate_rules.sql",
+    "056_provider_degraded_actions.sql",
 )
 """Run in order by :func:`apply_schema`, as the role that will own the tables."""
 APP_ROLE_GRANTS = "002_app_role_grants.sql"

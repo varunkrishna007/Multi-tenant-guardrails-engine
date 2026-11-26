@@ -101,6 +101,10 @@ from guardrail_engine.deterministic.identifiers import (
 )
 from guardrail_engine.deterministic.regex import RegexEngine, default_regex_engine
 from guardrail_engine.deterministic.rules import DeterministicAction
+from guardrail_engine.deterministic.secret_formats import (
+    SECRET_BLOCK_GUARD_POINTS,
+    SecretDetector,
+)
 from guardrail_engine.gateway.gateway import (
     USAGE_CHECK,
     CheckTiming,
@@ -108,7 +112,13 @@ from guardrail_engine.gateway.gateway import (
     GatewayConfig,
     TimedDecision,
 )
-from guardrail_engine.gateway.sinks import AlertSink, UsageMeter
+from guardrail_engine.gateway.sinks import (
+    ALERT_REFUSAL_ESCALATIONS_CAPPED,
+    Alert,
+    AlertSeverity,
+    AlertSink,
+    UsageMeter,
+)
 from guardrail_engine.guard.audit import AuditSink, NullAuditSink
 from guardrail_engine.guard.chunking import combine, split_chunks
 from guardrail_engine.guard.context import ContextVerificationError, ContextVerifier
@@ -117,12 +127,14 @@ from guardrail_engine.guard.deterministic import (
     MAX_STALE_S,
     CrossTenantScanner,
     check_plan_allowlist,
+    check_secrets,
     check_tool_allowlist,
     check_tool_mismatch,
     check_tool_schema,
     redact_deny_patterns,
     redact_hits,
     scan_deny_patterns,
+    secret_redaction_hit,
     size_limit_hit,
 )
 from guardrail_engine.guard.fusion import evaluate_answered, evaluate_failed, fuse
@@ -142,7 +154,20 @@ from guardrail_engine.guard.redaction import (
     redact_request,
     request_chars,
 )
+from guardrail_engine.guard.refusal import (
+    RefusalCapStore,
+    RefusalConfig,
+    RefusalEscalations,
+)
 from guardrail_engine.guard.render import NonceSource, count_tokens, new_nonce, render_input
+from guardrail_engine.guard.repeat import (
+    RepeatAttempts,
+    RepeatAttemptStore,
+    RepeatConfig,
+    RepeatSlot,
+    counts_as_block,
+    repeat_hit,
+)
 from guardrail_engine.guard.request import CheckContext, context_item_problem
 from guardrail_engine.guard.rollout import (
     ACTIVE as ACTIVE_ASSIGNMENT,
@@ -201,6 +226,12 @@ class GuardConfig:
     identifier_max_stale_s: float = MAX_STALE_S
     """How long the cross-tenant scan may go on with its previous identifier set while a rebuild
     runs; 0 makes a check wait for the rebuild, as it did before."""
+    repeat: RepeatConfig = field(default_factory=RepeatConfig)
+    """M7-03: how often the same blocked content is sent to the model again
+    (:mod:`guardrail_engine.guard.repeat`)."""
+    refusal: RefusalConfig = field(default_factory=RefusalConfig)
+    """M7-08: the cap on provider refusals sent to a person
+    (:mod:`guardrail_engine.guard.refusal`)."""
 
 
 @dataclass(frozen=True)
@@ -347,6 +378,17 @@ class _Run:
         """The verified tenant (M4-05: an escalation is routed under it)."""
         self.policy: GuardPointPolicy | None = None
         """The policy that decided the check (its escalation target and content setting)."""
+        self.repeat_slot: RepeatSlot | None = None
+        """M7-03: what a block of this check's content is counted under, set when the check
+        reaches the model path of a production check. Never on the verdict."""
+        self.repeat_flight: RepeatSlot | None = None
+        """M7-03: the slot whose one call in flight this check is; released when it ends."""
+        self.candidate_rules: tuple[str, ...] = ()
+        """M7-08: the escalate-only rule keys a provider refusal that was escalated might have
+        been about; goes to the escalation item, never to the verdict's ``fired``."""
+        self.repeat_refused = False
+        """M7-03: the check was refused as a repeat (no model call; a shadow candidate's isn't
+        made either)."""
         self.held_content: str | None = None
         """The post-redaction content the model saw, kept for an escalation (class D). Never on
         the verdict or in the audit record."""
@@ -445,6 +487,8 @@ class GuardService:
         escalations: EscalationSink | None = None,
         projects: Mapping[str, ProjectBackend] | None = None,
         content: ContentSubmitter | None = None,
+        repeat_store: RepeatAttemptStore | None = None,
+        refusal_store: RefusalCapStore | None = None,
     ) -> None:
         """``projects`` (M5-06) maps a dedicated project's label to its backend. A check of a
         tenant whose directory entry names a project (``attributes.project``) goes to that
@@ -495,6 +539,9 @@ class GuardService:
         if not callable(key_id):
             raise TypeError("key_id must be a callable returning the current key's id")
         self._config = config or GuardConfig()
+        self._repeats = RepeatAttempts(self._config.repeat, repeat_store)
+        self._refusals = RefusalEscalations(self._config.refusal, refusal_store)
+        self._alert_sink = alerts
         self._scanner = CrossTenantScanner(
             other_tenants if other_tenants is not None else NoOtherTenantIdentifiers(),
             regex if regex is not None else default_regex_engine(),
@@ -502,6 +549,8 @@ class GuardService:
             self._identifier_scan_sharded,
             max_stale_s=self._config.identifier_max_stale_s,
         )
+        # M7-01: the known-format patterns are the platform's, not a tenant's, and always RE2
+        self._secrets = SecretDetector(default_regex_engine())
         self._pii_detector = DEFAULT_PII_DETECTOR if pii_detector is None else pii_detector
         self._settings = settings or PlatformSettings()
         self._verifier = verifier
@@ -655,17 +704,33 @@ class GuardService:
             except Exception as exc:
                 logger.exception("guard check failed; failing closed")
                 verdict = run.fail_closed(f"unexpected {type(exc).__name__}")
-            try:
-                self._audit.record(verdict)
-            except Exception:
-                logger.exception("audit sink failed for request %s", verdict.request_id)
+            # Route the escalation and store the content first: neither waits, and the audit may
+            # (M7-04: a regulated tenant's record waits for room), so a caller cancelled during
+            # that wait has already had its escalation routed and its content stored.
             if self._escalations is not None and verdict.decision is Decision.ESCALATE:
                 self._route_escalation(run, verdict)
             if self._content is not None:
                 self._store_content(run, verdict)
+            await self._record_audit(verdict)
             return verdict
         finally:
+            self._release_repeat(run, verdict)
             self._end_trace(run.trace, verdict)
+
+    async def _record_audit(self, verdict: Verdict) -> None:
+        """Hand the verdict to the audit sink; never raises (``CancelledError`` aside). A sink
+        with ``arecord`` (the decision-record writer, M7-04) may wait a short, bounded time to
+        keep a regulated tenant's record; the verdict does not change."""
+        try:
+            arecord = getattr(self._audit, "arecord", None)
+            if arecord is not None:
+                await arecord(verdict)
+            else:
+                self._audit.record(verdict)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("audit sink failed for request %s", verdict.request_id)
 
     def attach_escalations(self, escalations: EscalationSink | None) -> None:
         """Set where ``escalate`` verdicts go (M4-05), for a composition root that builds the
@@ -711,6 +776,56 @@ class GuardService:
         except Exception:
             logger.exception("stored content could not be handed over for %s", verdict.request_id)
 
+    async def _refusal_goes_to_a_person(
+        self, run: _Run, tenant_id: str, guard_point: str, rules: Mapping[str, Any]
+    ) -> bool:
+        """Whether this provider refusal is an escalation and not a block (M7-08): only if an
+        enforce rule evaluated here may only escalate, an escalation router is attached (else
+        nobody would see it) and the tenant's cap is not spent. Sets ``run.candidate_rules``.
+        Never raises: any doubt is a block."""
+        try:
+            candidates = self._refusals.candidate_rules(rules)
+            if not candidates or self._escalations is None:
+                return False
+            taken = await self._refusals.take(tenant_id, guard_point, self._clock())
+            if taken.first_denial:
+                self._alert_refusal_cap(tenant_id, guard_point)
+            if not taken.allowed:
+                return False
+            run.candidate_rules = candidates
+            return True
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("a provider refusal could not be routed to a person; blocking")
+            return False
+
+    def _alert_refusal_cap(self, tenant_id: str, guard_point: str) -> None:
+        """One alert per tenant per window: the cap on refusals sent to a person is spent.
+        Off the check path; never raises."""
+        sink = self._alert_sink
+        if sink is None:
+            return
+        alert = Alert(
+            severity=AlertSeverity.WARNING,
+            kind=ALERT_REFUSAL_ESCALATIONS_CAPPED,
+            message=(
+                f"tenant {tenant_id}: the cap on provider refusals sent to a person is spent at "
+                f"{guard_point}; further refusals there are blocks until the window passes"
+            ),
+            key_id="",
+            tenant_id=tenant_id,
+            guard_point=guard_point,
+        )
+
+        def emit() -> None:
+            try:
+                sink.emit(alert)
+            except Exception:
+                logger.exception("the refusal escalation cap alert could not be raised")
+
+        asyncio.get_running_loop().run_in_executor(None, emit)
+
     def _route_escalation(self, run: _Run, verdict: Verdict) -> None:
         """Hand an ``escalate`` verdict to the router (M4-05). Never raises, never waits."""
         try:
@@ -728,6 +843,7 @@ class GuardService:
                     store_content=policy.store_content,
                     class_d_total=policy.class_d_total,
                     content=run.held_content,
+                    candidate_rules=run.candidate_rules,
                 )
             )
         except Exception:
@@ -1015,6 +1131,13 @@ class GuardService:
                 hits += await asyncio.to_thread(scan_deny_patterns, checks, content)
             else:
                 hits += scan_deny_patterns(checks, content)
+        if guard_point in SECRET_BLOCK_GUARD_POINTS:  # M7-01: floor, no model call
+            if len(content) > REDACT_OFF_LOOP_CHARS:  # a worker thread, as for redaction
+                hit = await asyncio.to_thread(check_secrets, self._secrets, content)
+            else:
+                hit = check_secrets(self._secrets, content)
+            if hit is not None:
+                hits.append(hit)
         if guard_point in CROSS_TENANT_GUARD_POINTS:
             try:
                 hit = await self._scanner.scan(tenant_id, content)
@@ -1165,13 +1288,37 @@ class GuardService:
         )
         run.policy = policy
         verdict = await self._evaluate(
-            run, tenant_id, guard_point, content, conversation, tool, policy
+            run, tenant_id, guard_point, content, conversation, tool, policy, count_repeats=True
         )
-        if shadow_task is not None:
+        if shadow_task is not None and run.repeat_refused:
+            # The active side refused a repeat without a model call: the candidate makes none
+            # either, and the check is not one of the comparisons the agreement figures count.
+            shadow_task.cancel()
+            verdict = verdict.model_copy(update={"candidate_reason": "repeat_refusal"})
+        elif shadow_task is not None:
             verdict = await self._finish_shadow(
                 verdict, shadow_task, verified.scope, guard_point, lookup.policy.version
             )
+        await self._note_repeat(run, verdict)
         return verdict
+
+    def _release_repeat(self, run: _Run, verdict: Verdict | None) -> None:
+        """This check was the call in flight on its slot: wake the copies waiting for it. The
+        slot is open for the window if the model allowed the content (an escalation doesn't)."""
+        slot, run.repeat_flight = run.repeat_flight, None
+        if slot is not None:
+            allowed = (
+                verdict is not None
+                and verdict.reason is Reason.POLICY
+                and verdict.decision is Decision.ALLOW
+            )
+            self._repeats.release(slot, self._clock, allowed=allowed)
+
+    async def _note_repeat(self, run: _Run, verdict: Verdict) -> None:
+        """Count the verdict's block of this content (M7-03). Never raises."""
+        slot, run.repeat_slot = run.repeat_slot, None
+        if slot is not None and counts_as_block(verdict):
+            await self._repeats.note(slot, self._clock())
 
     async def _decide(
         self,
@@ -1182,13 +1329,16 @@ class GuardService:
         usage_class: str,
         tier: str | None,
         project: str | None = None,
+        max_budget_s: float | None = None,
     ) -> Any:
         """The decision call(s) of a check: the gateway's outcome for one rendered input, or,
         for a chunked ``tool_result`` (M3-04), one call per chunk **submitted together**, each
         going through the gateway's admission control as any call does, then combined
         (:func:`~guardrail_engine.guard.chunking.combine`): the merged answer, or the failure
         of any chunk. Nothing here assumes the calls run in parallel on one key."""
-        extra = {} if usage_class == USAGE_CHECK else {"usage_class": usage_class}
+        extra: dict[str, Any] = {} if usage_class == USAGE_CHECK else {"usage_class": usage_class}
+        if max_budget_s is not None:  # M7-03: a copy that waited has only what is left
+            extra["max_budget_s"] = max_budget_s
         gateway = self.gateway_for(project)  # LookupError: no backend, a model failure (M5-06)
 
         def call(text: str, **more: Any) -> Any:
@@ -1252,8 +1402,13 @@ class GuardService:
         tool: str | None,
         policy: GuardPointPolicy,
         usage_class: str = USAGE_CHECK,
+        count_repeats: bool = False,
     ) -> Verdict:
-        """Steps 4 to 7 of a check, on a policy already chosen: the size limit, redaction,
+        """(``count_repeats`` is True only on the production check path: it switches on repeat
+        counting (M7-03) and the escalation of a provider refusal (M7-08), neither of which a
+        draft test, calibration, a gate or a shadow candidate may do.)
+
+        Steps 4 to 7 of a check, on a policy already chosen: the size limit, redaction,
         rendering, the one decision call and the fusion. ``usage_class`` is
         :data:`~guardrail_engine.gateway.gateway.USAGE_CHECK` for production traffic; a draft
         test passes ``"test"`` and is metered apart (M2-05)."""
@@ -1294,6 +1449,30 @@ class GuardService:
         run.fields["deterministic"] = tuple(hits)
         if any(h.action is DeterministicAction.BLOCK for h in hits):
             return run.finish(Decision.BLOCK, Reason.DETERMINISTIC)
+        repeat_timed_out = False
+        repeat_waited = False
+        if count_repeats and self._repeats.applies_to(guard_point):
+            # M7-03: content already blocked as often as the threshold allows in the window is
+            # refused here, before redaction, the model and the provider are spent on it again.
+            # Copies sent at the same moment go one at a time (single flight): the others wait
+            # for the call in flight, within this check's time, and read the count again.
+            slot = self._repeats.slot(tenant_id, guard_point, tool, content, policy.bundle_hash)
+            left = max(
+                0.0,
+                self._config.gateway.cap_for(guard_point) - (self._clock() - run.start),
+            )
+            gate = await self._repeats.enter(slot, self._clock, left)
+            if gate.outcome == "refuse":
+                run.repeat_refused = True
+                run.fields["deterministic"] = (*hits, repeat_hit(gate.count))
+                return run.finish(
+                    Decision.BLOCK, Reason.DETERMINISTIC, detail=self._repeats.detail(gate.count)
+                )
+            run.repeat_slot = slot
+            if gate.owner:
+                run.repeat_flight = slot
+            repeat_timed_out = gate.outcome == "timeout"
+            repeat_waited = gate.waited
         # M3-03: a read-only tool the registry marks ``skip_model`` skips the
         # tenant's and packs' questions only: the floor's are still asked. Every deterministic
         # check above has run; a block already ended the check.
@@ -1347,6 +1526,7 @@ class GuardService:
                 deny_redactor=(lambda text: redact_deny_patterns(deny_rules, text))
                 if has_redact_rules
                 else None,
+                secrets=self._secrets,  # M7-01: a known-format credential becomes [SECRET]
             )
 
         try:
@@ -1372,6 +1552,9 @@ class GuardService:
         run.held_content = redacted.content
         if redacted.deny_counts:
             hits = [*hits, *redact_hits(deny_rules, redacted.deny_counts)]
+            run.fields["deterministic"] = tuple(hits)
+        if redacted.secret_count:
+            hits = [*hits, secret_redaction_hit(redacted.secret_count)]
             run.fields["deterministic"] = tuple(hits)
         sent_tokens = count_tokens(redacted.content)
         if chunked:  # M3-04: cut the redacted content, once, after everything whole-content
@@ -1430,19 +1613,33 @@ class GuardService:
         result: Any = None
         timing: CheckTiming | None = None
         capacity: tuple[int | None, bool] = (None, False)  # R8, from the gateway only
+        degraded = False  # M7-11, from the gateway only
         engine_detail: str | None = None  # the only detail a model failure records
         self._trace_model_call_started(run.trace)
         started = self._clock()
         try:
-            timed = await self._decide(
-                tenant_id,
-                guard_point,
-                [r.text for r in rendered_inputs],
-                questions,
-                usage_class,
-                policy.profile.attributes.tier,  # M3-07: the tenant's share and weight
-                policy.profile.attributes.project,  # M5-06: the tenant's Gemini project
-            )
+            if repeat_timed_out:
+                # M7-03: this copy waited for the call in flight on its slot and its time ran
+                # out: the guard point's existing timeout outcome, with no call of its own.
+                timed = Failed(kind=FailureKind.TIMEOUT)
+                run.fields["provider_calls"] = 0
+            else:
+                timed = await self._decide(
+                    tenant_id,
+                    guard_point,
+                    [r.text for r in rendered_inputs],
+                    questions,
+                    usage_class,
+                    policy.profile.attributes.tier,  # M3-07: the tenant's share and weight
+                    policy.profile.attributes.project,  # M5-06: the tenant's Gemini project
+                    # M7-03: a copy that waited for another call gets only the rest of the
+                    # guard point's cap, so waiting and calling together stay within it.
+                    max_budget_s=(
+                        self._config.gateway.cap_for(guard_point) - (self._clock() - run.start)
+                        if repeat_waited
+                        else None
+                    ),
+                )
             if isinstance(timed, TimedDecision):
                 result, timing = timed.result, timed.timing
                 # M1-04 metering: queue wait and provider time, and how many requests were
@@ -1454,6 +1651,7 @@ class GuardService:
                     in_flight_at_start=timing.in_flight_at_start,
                 )
                 capacity = (timed.retry_after_ms, timed.capacity_limited)
+                degraded = timed.degraded
             else:  # not what the gateway promises: resolved below like any garbage result
                 result = timed
         except asyncio.CancelledError:
@@ -1468,7 +1666,7 @@ class GuardService:
         if not isinstance(result, Answered | SafetyBlocked | Failed):
             engine_detail = f"gateway returned {type(result).__name__}"
             result = Failed(kind=FailureKind.OTHER, message=engine_detail)
-            capacity = (None, False)  # whatever came with a broken result means nothing
+            capacity, degraded = (None, False), False  # a broken result's extras mean nothing
         elif isinstance(result, SafetyBlocked | Failed) and result.message:
             # Provider (or gateway) free text: debug logs only, truncated, never the verdict,
             # the audit record or a span. It may echo the request.
@@ -1486,6 +1684,20 @@ class GuardService:
 
         # 7. Resolve and fuse.
         if isinstance(result, SafetyBlocked):  # PF-12: whatever the modes and fail modes
+            if count_repeats and await self._refusal_goes_to_a_person(
+                run, tenant_id, guard_point, rules
+            ):
+                # M7-08: the guard point has an enforce rule that may only escalate, and the
+                # tenant's cap allows it: a person sees what the provider would not judge. The
+                # content is withheld, as for a block; no rule fired. Only on the production
+                # check path (the flag M7-03's counting uses): a draft test, calibration, a
+                # gate, tool screening or a shadow candidate's refusal is a block, takes
+                # nothing from the cap and routes nothing.
+                return run.finish(
+                    Decision.ESCALATE,
+                    Reason.PROVIDER_SAFETY,
+                    failure_reason=recorded_code(result.reason),
+                )
             return run.finish(
                 Decision.BLOCK,
                 Reason.PROVIDER_SAFETY,
@@ -1512,6 +1724,7 @@ class GuardService:
                 detail=engine_detail,
                 retry_after_ms=retry_after_ms,
                 capacity_limited=capacity_limited,
+                degraded=degraded,
             )
 
         evaluated = evaluate_answered(rules, all_questions, result)

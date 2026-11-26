@@ -358,7 +358,7 @@ GUARD_ALLOWED = frozenset(
     {
         "__future__", "asyncio", "base64", "binascii", "collections", "dataclasses",
         "datetime", "enum", "hashlib", "hmac", "json", "logging", "math", "re", "secrets",
-        "time", "types", "typing", "uuid", "pydantic", "guardrail_engine",
+        "time", "types", "typing", "unicodedata", "uuid", "pydantic", "guardrail_engine",
     }
 )  # fmt: skip
 

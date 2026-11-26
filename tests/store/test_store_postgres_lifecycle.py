@@ -660,6 +660,27 @@ async def test_the_platform_store_on_postgres(fa, app_pool, pg_pool):
             await pg_pool.execute(statement)
 
 
+async def test_the_provider_hold_and_lift_are_class_a_events_on_postgres(fa, pg_pool):
+    import asyncpg
+
+    from guardrail_engine.admin.floors import PlatformEvent
+
+    hold = PlatformEvent(fa.now, "ops-1", "provider_degraded_hold", detail={"reason": "outage"})
+    lift = PlatformEvent(fa.now, "ops-1", "provider_degraded_lift", detail={"reason": "over"})
+    await fa.platform.record(hold)
+    await fa.platform.record(lift)
+    assert [e.action for e in await fa.platform.events()] == [
+        "provider_degraded_hold",
+        "provider_degraded_lift",
+    ]
+    with pytest.raises(asyncpg.RestrictViolationError):  # still append-only
+        await pg_pool.execute("UPDATE platform_audit SET actor = 'x'")
+    with pytest.raises(asyncpg.CheckViolationError):  # and no other action name is accepted
+        await pg_pool.execute(
+            "INSERT INTO platform_audit (at, actor, action) VALUES (now(), 'x', 'something_else')"
+        )
+
+
 async def test_repin_promote_minimum_and_the_rollback_guard_on_postgres(fa):
     from datetime import timedelta
 

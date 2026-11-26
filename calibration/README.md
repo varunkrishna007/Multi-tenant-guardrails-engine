@@ -296,7 +296,9 @@ offline except `run`:
 - `run --out FILE` sends them through `build_engine` to the live provider, with every stop of
   the calibration runner on (first provider refusal, auth, unclassified failure, unusable
   answers, over 20% of the last 50 checks failed, the token and provider-call ceilings). It
-  needs the maintainer's explicit approval and `GEMINI_API_KEY` in the environment.
+  needs the maintainer's explicit approval and `GEMINI_API_KEY` in the environment. The approval
+variable the script checks is a flag that you mean it, not the approval, and a refusal doesn't print
+its value.
 - `report FILE` is offline: the five gate items below, each with its case count.
 
 The traffic is **scripted benign** conversations (`SCRIPTS`, ten of them, fixed) with a **fixed

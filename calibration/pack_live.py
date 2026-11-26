@@ -108,7 +108,7 @@ HEALTHCARE_WITHHELD = frozenset(
     {f"hc-dos-pos-{n:03d}" for n in range(1, 17)}
     | {"hc-dgn-pos-007", "hc-dgn-pos-008", "hc-out-pos-015", "hc-out-pos-016"}
 )
-"""The healthcare pack's withheld rows, exactly (R60): every dosing-advice positive (16), the two
+"""The healthcare pack's withheld rows, exactly: every dosing-advice positive (16), the two
 diagnosis rows that discourage seeking care and the two misinformation rows."""
 
 NEVER_SENT_RULES = frozenset({"d__ins_fraud_signal", "d__en_unsafe_advice", "d__harm_facilitation"})
@@ -771,7 +771,10 @@ def refuse_to_start(args: argparse.Namespace, planned: Mapping[str, Any]) -> Non
         raise Refused(f"at least {DRAWS} draws")
     if args.live:
         if os.environ.get(LIVE_KEY) != LIVE_TOKEN:
-            raise Refused(f"a live run needs {LIVE_KEY}={LIVE_TOKEN} in the environment")
+            raise Refused(
+                f"a live run needs the user's written approval, recorded in the environment as "
+                f"{LIVE_KEY} (see calibration/README.md); the value is not printed here"
+            )
         if args.max_tokens is None or args.max_provider_calls is None:
             raise Refused("a live run needs --max-tokens and --max-provider-calls")
         if planned["checks"] > MAX_CHECKS_PER_PACK:
@@ -932,7 +935,8 @@ def main(argv: list[str] | None = None) -> int:
         if name == "run":
             p.add_argument("--out", required=True)
             p.add_argument("--live", action="store_true",
-                           help=f"send to the provider (also needs {LIVE_KEY}={LIVE_TOKEN})",
+                           help="send to the provider (also needs the approval variable in the "
+                           "environment, with the user's written approval)",
                            )  # fmt: skip
             p.add_argument("--env-file", default=None,
                            help="an .env file holding GEMINI_API_KEY (never printed)")  # fmt: skip

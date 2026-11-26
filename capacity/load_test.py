@@ -488,11 +488,17 @@ def engine_settings(config: LoadConfig, floor_version: int) -> Any:
         "gemini": {"paid_tier": True},
         "catalog": {"default_on_packs": []},
         "token_rate": token_rate,
+        # The load test resubmits the same texts to measure the gateway: repeat-attempt
+        # counting (M7-03) would answer them without a model call.
+        "guard": {"repeat_threshold": 0},
     }
     if config.quotas:
         mapping["quotas"] = {}
+    # It measures the gateway's own limits and the model's latency: the provider-health breaker
+    # (M7-11) would answer the checks after a few failed calls without sending them.
+    mapping["gateway"] = {"degraded_consecutive": 0, "degraded_window_calls": 0}
     if config.in_flight is not None:
-        mapping["gateway"] = {"max_in_flight_per_key": config.in_flight}
+        mapping["gateway"]["max_in_flight_per_key"] = config.in_flight
     projects = sorted({t.project for t in config.tenants if t.project})
     if projects:
         mapping["projects"] = {

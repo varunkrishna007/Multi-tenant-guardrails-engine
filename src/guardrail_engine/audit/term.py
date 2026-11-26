@@ -31,10 +31,15 @@ that has quietly started keeping everything for 7 years is noticed.
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from typing import Any, Protocol
 
-from guardrail_engine.policy.catalog import Catalog, PackVersion, PlatformSettings
+from guardrail_engine.policy.catalog import (
+    Catalog,
+    PackVersion,
+    PlatformSettings,
+    is_regulated_tier,
+)
 from guardrail_engine.policy.compiler import combined_retention, records_days_in_bounds
 from guardrail_engine.policy.document import EXTENDS_REF_PATTERN
 from guardrail_engine.retention.resolver import TenantRetention
@@ -109,6 +114,21 @@ class EffectiveTerm:
         return TenantRetention(
             max(profile.records_min_days, min(days, profile.records_max_days)), "clamped"
         )
+
+
+def directory_regulated(directory: _Directory) -> Callable[[str], Awaitable[bool]]:
+    """Whether a tenant's tier is regulated (anything but ``standard``, R2), read from the same
+    directory entry as the term. A tenant that isn't in the directory is not regulated; a
+    directory that fails raises, and the caller decides (the decision-record writer keeps the
+    record, M7-04)."""
+
+    async def regulated(tenant_id: str) -> bool:
+        entry = await directory.get(tenant_id)
+        if entry is None:
+            return False
+        return is_regulated_tier(getattr(getattr(entry, "attributes", entry), "tier"))  # noqa: B009
+
+    return regulated
 
 
 class _Unresolvable(Exception):

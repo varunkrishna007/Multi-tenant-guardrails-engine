@@ -108,6 +108,7 @@ def request_from_check(
     content: str | None,
     triggered_by: str | None = None,
     class_d_total: bool = False,
+    candidate_rules: tuple[str, ...] = (),
 ) -> EscalationRequest:
     """The routing request for an ``escalate`` verdict. ``content`` is the **post-redaction**
     text the model saw. It is held only where R3 allows: always for the ``queue`` target (the
@@ -137,6 +138,7 @@ def request_from_check(
         content=held,
         content_truncated=truncated,
         triggered_by=triggered_by,
+        candidate_rules=tuple(candidate_rules[:MAX_RULES]),
     )
     return EscalationRequest(scope=scope, item=item, url=url)
 
@@ -282,6 +284,7 @@ class EscalationRouter:
             bundle_version=item.bundle_version,
             rules=tuple((r.key, r.action, r.mode) for r in item.rules),
             content_available=item.content_held,
+            candidate_rules=item.candidate_rules,
         )
         # The outbox is synchronous (it may wait on a database): off the loop, so a slow one
         # costs this worker its timeout, not the event loop.

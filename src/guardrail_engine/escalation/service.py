@@ -119,6 +119,7 @@ def item_view(
         "rules": [
             {"key": r.key, "action": r.action, "mode": r.mode, "layer": r.layer} for r in item.rules
         ],
+        "candidate_rules": list(item.candidate_rules),
         "content_sha256": item.content_sha256,
         "content_held": item.content_held,
         "content_truncated": item.content_truncated,
